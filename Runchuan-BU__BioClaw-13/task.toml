@@ -1,0 +1,69 @@
+version = "1.0"
+
+[task]
+name = "default/Runchuan-BU__BioClaw-13"
+description = "Add OpenRouter support and reusable figure templates"
+
+[metadata]
+difficulty = "large"
+category = "bugfix"
+keywords = [
+    "BioClaw",
+    "pr_diff",
+]
+
+[metadata.repo2env]
+pipeline = "pr_diff"
+pipeline_version = "0.3.0"
+repo = "Runchuan-BU/BioClaw"
+ref = "b701241d4984dd0638dcad39db4bed9c37ede62c"
+reference = "https://github.com/Runchuan-BU/BioClaw/pull/13"
+source_access = "auto"
+built_at = "2026-11-16T08:31:11.303622+00:00"
+reward_kinds = [
+    "diff_similarity",
+]
+spec_version = "0.2.0"
+content_hash = "sha256:6989e0c902d9556c9fd1cf945d7554ab834e9c96b8c7f51f7772a13c3a2031ea"
+
+[metadata.repo2env.pr_diff]
+pr_merged_at = "2026-03-13T15:49:00Z"
+diff_format = "unified"
+context_files = [
+    "README.md",
+    "README.zh-CN.md",
+    "container/agent-runner/src/index.ts",
+    "container/skills/bio-tools/SKILL.md",
+    "container/skills/bio-tools/pymol_render_template.py",
+    "container/skills/bio-tools/qc_summary_plot_template.py",
+    "container/skills/bio-tools/volcano_plot_template.py",
+    "src/container-runner.ts",
+]
+
+[metadata.repo2env.reward_calibration]
+baseline_reward = 0.0
+loc_changed = 884
+difficulty = "large"
+
+[metadata.repo2env.evaluation]
+schema_version = "1"
+status = "unverified"
+stage = "generation"
+reason_codes = [
+    "validation_not_run",
+]
+detail = "Generated task; validation has not been established."
+provenance = "unknown"
+evidence = []
+
+[metadata.repo2env.reproducibility]
+mode = "local_only"
+image_ref = "python:3.12-slim"
+image_tag = "python:3.12-slim"
+image_visibility = "private"
+
+[agent]
+timeout_sec = 1800.0
+
+[verifier]
+timeout_sec = 300.0

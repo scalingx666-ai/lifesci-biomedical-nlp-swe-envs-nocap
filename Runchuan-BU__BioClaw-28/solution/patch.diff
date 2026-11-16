@@ -1,0 +1,112 @@
+diff --git a/README.md b/README.md
+index 05b4aa2..c7c1fe9 100644
+--- a/README.md
++++ b/README.md
+@@ -17,6 +17,9 @@
+ 
+ Built on the [NanoClaw](https://github.com/qwibitai/nanoclaw) architecture with bioinformatics tools and skills from the [STELLA](https://github.com/zaixizhang/STELLA) project, powered by the [Claude Agent SDK](https://docs.anthropic.com/en/docs/agents-sdk).
+ 
++<p align="center">
++  New BioClaw-compatible skills are first contributed to <a href="https://github.com/zongtingwei/Bioclaw_Skills_Hub">Bioclaw_Skills_Hub</a>, where they can be iterated and tested before being promoted into the main BioClaw repository. If you want to contribute new skills, please submit them there first. Skills that prove useful and stable in practice may later be integrated into BioClaw itself. To get newly promoted skills and updates from BioClaw, pull the latest version of this repository with <code>git pull</code>.
++</p>
+ </div>
+ 
+ ## Join WeChat Group
+diff --git a/README.zh-CN.md b/README.zh-CN.md
+index 0c43000..377903f 100644
+--- a/README.zh-CN.md
++++ b/README.zh-CN.md
+@@ -12,6 +12,10 @@
+ [![Paper](https://img.shields.io/badge/bioRxiv-STELLA-b31b1b.svg)](https://www.biorxiv.org/content/10.1101/2025.07.01.662467v2)
+ [![arXiv](https://img.shields.io/badge/arXiv-2507.02004-b31b1b.svg)](https://arxiv.org/abs/2507.02004)
+ 
++<p align="center">
++  新的 BioClaw 兼容 skills 会先提交到 <a href="https://github.com/zongtingwei/Bioclaw_Skills_Hub">Bioclaw_Skills_Hub</a> 仓库，在那里先完成迭代和测试，再视效果同步到主 BioClaw 仓库中。如果你想贡献新的 skills，请优先提交到该仓库。经过验证、效果稳定的 skills，后续会逐步整合进 BioClaw。若想获取这些后续合入的 skills 和更新内容，请在本仓库中执行 <code>git pull</code>。
++</p>
++
+ </div>
+ 
+ ---
+diff --git a/src/channels/whatsapp.test.ts b/src/channels/whatsapp.test.ts
+index aa31cfe..b0bdbf7 100644
+--- a/src/channels/whatsapp.test.ts
++++ b/src/channels/whatsapp.test.ts
+@@ -5,6 +5,9 @@ import { EventEmitter } from 'events';
+ 
+ // Mock config
+ vi.mock('../config.js', () => ({
++  ALLOW_WHATSAPP_SELF_MESSAGES: false,
++  ASSISTANT_NAME: 'Bioclaw',
++  GROUPS_DIR: '/tmp/bioclaw-test-groups',
+   STORE_DIR: '/tmp/bioclaw-test-store',
+ }));
+ 
+@@ -81,6 +84,7 @@ let fakeSocket: ReturnType<typeof createFakeSocket>;
+ // Mock Baileys
+ vi.mock('@whiskeysockets/baileys', () => {
+   return {
++    downloadMediaMessage: vi.fn().mockResolvedValue(Buffer.from('image-bytes')),
+     default: vi.fn(() => fakeSocket),
+     Browsers: {
+       macOS: vi.fn((browser: string) => ['Mac OS', browser, '14.4.1']),
+@@ -97,6 +101,9 @@ vi.mock('@whiskeysockets/baileys', () => {
+       restartRequired: 515,
+     },
+     makeCacheableSignalKeyStore: vi.fn((keys: unknown) => keys),
++    fetchLatestBaileysVersion: vi.fn().mockResolvedValue({
++      version: [2, 3000, 1035194821],
++    }),
+     useMultiFileAuthState: vi.fn().mockResolvedValue({
+       state: {
+         creds: {},
+@@ -333,6 +340,7 @@ describe('WhatsAppChannel', () => {
+       expect(opts.onChatMetadata).toHaveBeenCalledWith(
+         'registered@g.us',
+         expect.any(String),
++        'WhatsApp Group red@g.us',
+       );
+       expect(opts.onMessage).toHaveBeenCalledWith(
+         'registered@g.us',
+@@ -368,6 +376,7 @@ describe('WhatsAppChannel', () => {
+       expect(opts.onChatMetadata).toHaveBeenCalledWith(
+         'unregistered@g.us',
+         expect.any(String),
++        'WhatsApp Group red@g.us',
+       );
+       expect(opts.onMessage).not.toHaveBeenCalled();
+     });
+@@ -467,7 +476,9 @@ describe('WhatsAppChannel', () => {
+ 
+       expect(opts.onMessage).toHaveBeenCalledWith(
+         'registered@g.us',
+-        expect.objectContaining({ content: 'Check this photo' }),
++        expect.objectContaining({
++          content: expect.stringContaining('Check this photo'),
++        }),
+       );
+     });
+ 
+@@ -592,6 +603,7 @@ describe('WhatsAppChannel', () => {
+       expect(opts.onChatMetadata).toHaveBeenCalledWith(
+         '1234567890@s.whatsapp.net',
+         expect.any(String),
++        'WhatsApp DM Self',
+       );
+     });
+ 
+@@ -618,6 +630,7 @@ describe('WhatsAppChannel', () => {
+       expect(opts.onChatMetadata).toHaveBeenCalledWith(
+         'registered@g.us',
+         expect.any(String),
++        'WhatsApp Group red@g.us',
+       );
+     });
+ 
+@@ -644,6 +657,7 @@ describe('WhatsAppChannel', () => {
+       expect(opts.onChatMetadata).toHaveBeenCalledWith(
+         '0000000000@lid',
+         expect.any(String),
++        'WhatsApp DM Unknown',
+       );
+     });
+   });

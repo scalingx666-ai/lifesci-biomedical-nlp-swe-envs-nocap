@@ -1,0 +1,72 @@
+version = "1.0"
+
+[task]
+name = "default/Runchuan-BU__BioClaw-26"
+description = "Add QQ official bot support on latest main"
+
+[metadata]
+difficulty = "large"
+category = "bugfix"
+keywords = [
+    "BioClaw",
+    "pr_diff",
+]
+
+[metadata.repo2env]
+pipeline = "pr_diff"
+pipeline_version = "0.3.0"
+repo = "Runchuan-BU/BioClaw"
+ref = "2b6e780ca90d2421b6b8f567e3d9abb90ecb6b56"
+reference = "https://github.com/Runchuan-BU/BioClaw/pull/26"
+source_access = "auto"
+built_at = "2026-11-16T08:30:51.082118+00:00"
+reward_kinds = [
+    "diff_similarity",
+]
+spec_version = "0.2.0"
+content_hash = "sha256:74e92e6a37292470a8c10eb89ef8cd98ca8742cd35f1a8f8cbfeac6040816036"
+
+[metadata.repo2env.pr_diff]
+pr_merged_at = "2026-03-24T09:45:25Z"
+diff_format = "unified"
+context_files = [
+    ".env.example",
+    "README.md",
+    "README.zh-CN.md",
+    "docs/CHANNELS.md",
+    "docs/CHANNELS.zh-CN.md",
+    "docs/QQ_SETUP.zh-CN.md",
+    "package-lock.json",
+    "package.json",
+    "src/channels/qq.ts",
+    "src/config.ts",
+    "src/index.ts",
+]
+
+[metadata.repo2env.reward_calibration]
+baseline_reward = 0.0
+loc_changed = 786
+difficulty = "large"
+
+[metadata.repo2env.evaluation]
+schema_version = "1"
+status = "unverified"
+stage = "generation"
+reason_codes = [
+    "validation_not_run",
+]
+detail = "Generated task; validation has not been established."
+provenance = "unknown"
+evidence = []
+
+[metadata.repo2env.reproducibility]
+mode = "local_only"
+image_ref = "python:3.12-slim"
+image_tag = "python:3.12-slim"
+image_visibility = "private"
+
+[agent]
+timeout_sec = 1800.0
+
+[verifier]
+timeout_sec = 300.0

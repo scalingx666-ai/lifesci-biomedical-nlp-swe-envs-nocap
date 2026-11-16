@@ -1,0 +1,63 @@
+version = "1.0"
+
+[task]
+name = "default/Runchuan-BU__BioClaw-21"
+description = "Fix db and WhatsApp test baseline"
+
+[metadata]
+difficulty = "medium"
+category = "bugfix"
+keywords = [
+    "BioClaw",
+    "pr_diff",
+]
+
+[metadata.repo2env]
+pipeline = "pr_diff"
+pipeline_version = "0.3.0"
+repo = "Runchuan-BU/BioClaw"
+ref = "47f710f204f689d29707e2a724d9c34579b48e3a"
+reference = "https://github.com/Runchuan-BU/BioClaw/pull/21"
+source_access = "auto"
+built_at = "2026-11-16T08:31:04.696220+00:00"
+reward_kinds = [
+    "diff_similarity",
+]
+spec_version = "0.2.0"
+content_hash = "sha256:9cbfd51634d4b899ce93f942fc15dd4e7a6111c5ebc2fb8d2accfcb0cab91a5b"
+
+[metadata.repo2env.pr_diff]
+pr_merged_at = "2026-03-22T02:14:54Z"
+diff_format = "unified"
+context_files = [
+    "src/channels/whatsapp.test.ts",
+    "src/db.test.ts",
+]
+
+[metadata.repo2env.reward_calibration]
+baseline_reward = 0.0
+loc_changed = 51
+difficulty = "medium"
+
+[metadata.repo2env.evaluation]
+schema_version = "1"
+status = "unverified"
+stage = "generation"
+reason_codes = [
+    "validation_not_run",
+]
+detail = "Generated task; validation has not been established."
+provenance = "unknown"
+evidence = []
+
+[metadata.repo2env.reproducibility]
+mode = "local_only"
+image_ref = "python:3.12-slim"
+image_tag = "python:3.12-slim"
+image_visibility = "private"
+
+[agent]
+timeout_sec = 1800.0
+
+[verifier]
+timeout_sec = 300.0

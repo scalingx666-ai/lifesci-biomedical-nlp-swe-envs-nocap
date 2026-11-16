@@ -1,0 +1,63 @@
+version = "1.0"
+
+[task]
+name = "default/Runchuan-BU__BioClaw-2"
+description = "Add Chinese font support for plots"
+
+[metadata]
+difficulty = "easy"
+category = "bugfix"
+keywords = [
+    "BioClaw",
+    "pr_diff",
+]
+
+[metadata.repo2env]
+pipeline = "pr_diff"
+pipeline_version = "0.3.0"
+repo = "Runchuan-BU/BioClaw"
+ref = "289f94bef0308c7fe7dc60d4bf2cce99f34c4d5f"
+reference = "https://github.com/Runchuan-BU/BioClaw/pull/2"
+source_access = "auto"
+built_at = "2026-11-16T08:31:22.281125+00:00"
+reward_kinds = [
+    "diff_similarity",
+]
+spec_version = "0.2.0"
+content_hash = "sha256:dfe9f597c401eca5ae2a394a8f35246ce1d8ab23da226bd38f3468c6c7277c21"
+
+[metadata.repo2env.pr_diff]
+pr_merged_at = "2026-03-04T02:17:13Z"
+diff_format = "unified"
+context_files = [
+    "container/Dockerfile",
+    "container/agent-runner/src/index.ts",
+]
+
+[metadata.repo2env.reward_calibration]
+baseline_reward = 0.0
+loc_changed = 3
+difficulty = "trivial"
+
+[metadata.repo2env.evaluation]
+schema_version = "1"
+status = "unverified"
+stage = "generation"
+reason_codes = [
+    "validation_not_run",
+]
+detail = "Generated task; validation has not been established."
+provenance = "unknown"
+evidence = []
+
+[metadata.repo2env.reproducibility]
+mode = "local_only"
+image_ref = "python:3.12-slim"
+image_tag = "python:3.12-slim"
+image_visibility = "private"
+
+[agent]
+timeout_sec = 1800.0
+
+[verifier]
+timeout_sec = 300.0

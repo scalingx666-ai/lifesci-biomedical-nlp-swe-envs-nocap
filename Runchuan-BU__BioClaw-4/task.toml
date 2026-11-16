@@ -1,0 +1,62 @@
+version = "1.0"
+
+[task]
+name = "default/Runchuan-BU__BioClaw-4"
+description = "Add pigz tabix sra-tools salmon kallisto"
+
+[metadata]
+difficulty = "small"
+category = "bugfix"
+keywords = [
+    "BioClaw",
+    "pr_diff",
+]
+
+[metadata.repo2env]
+pipeline = "pr_diff"
+pipeline_version = "0.3.0"
+repo = "Runchuan-BU/BioClaw"
+ref = "c7e8c24f33f7c11158d27e2d857bc62bf2316feb"
+reference = "https://github.com/Runchuan-BU/BioClaw/pull/4"
+source_access = "auto"
+built_at = "2026-11-16T08:31:20.870074+00:00"
+reward_kinds = [
+    "diff_similarity",
+]
+spec_version = "0.2.0"
+content_hash = "sha256:bd85e611133819c385375015ed27f26e791899daa21fa9c1aeb2f31db1dc0e11"
+
+[metadata.repo2env.pr_diff]
+pr_merged_at = "2026-03-05T14:45:37Z"
+diff_format = "unified"
+context_files = [
+    "container/Dockerfile",
+]
+
+[metadata.repo2env.reward_calibration]
+baseline_reward = 0.0
+loc_changed = 11
+difficulty = "small"
+
+[metadata.repo2env.evaluation]
+schema_version = "1"
+status = "unverified"
+stage = "generation"
+reason_codes = [
+    "validation_not_run",
+]
+detail = "Generated task; validation has not been established."
+provenance = "unknown"
+evidence = []
+
+[metadata.repo2env.reproducibility]
+mode = "local_only"
+image_ref = "python:3.12-slim"
+image_tag = "python:3.12-slim"
+image_visibility = "private"
+
+[agent]
+timeout_sec = 1800.0
+
+[verifier]
+timeout_sec = 300.0

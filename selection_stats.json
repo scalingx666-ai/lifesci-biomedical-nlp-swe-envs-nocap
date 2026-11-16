@@ -1,0 +1,62 @@
+{
+  "slug": "biomedical-nlp",
+  "title": "Biomedical NLP & Literature Mining",
+  "candidates": 226,
+  "clean": 64,
+  "final": 64,
+  "cap": "unlimited",
+  "min_star": 50,
+  "active_since": "2023-01-01",
+  "active_all": true,
+  "non_archived_all": true,
+  "star_buckets": {
+    ">=1000": 24,
+    "500-999": 6,
+    "200-499": 11,
+    "100-199": 10,
+    "50-99": 13
+  },
+  "top10": [
+    {
+      "repo": "K-Dense-AI/scientific-agent-skills",
+      "stars": 57129
+    },
+    {
+      "repo": "Anil-matcha/Open-Generative-AI",
+      "stars": 34594
+    },
+    {
+      "repo": "spmallick/learnopencv",
+      "stars": 23246
+    },
+    {
+      "repo": "architecture-decision-record/architecture-decision-record",
+      "stars": 17464
+    },
+    {
+      "repo": "google-deepmind/alphafold",
+      "stars": 14939
+    },
+    {
+      "repo": "flairNLP/flair",
+      "stars": 14400
+    },
+    {
+      "repo": "Future-House/paper-qa",
+      "stars": 9597
+    },
+    {
+      "repo": "stanfordnlp/stanza",
+      "stars": 7916
+    },
+    {
+      "repo": "gepa-ai/gepa",
+      "stars": 7428
+    },
+    {
+      "repo": "jtleek/datasharing",
+      "stars": 6798
+    }
+  ],
+  "build": "expansion"
+}

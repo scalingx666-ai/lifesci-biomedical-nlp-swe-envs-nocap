@@ -1,0 +1,70 @@
+version = "1.0"
+
+[task]
+name = "default/Runchuan-BU__BioClaw-43"
+description = "新增 V2 本地 Web UI：流式输出、Lab Trace、多主题"
+
+[metadata]
+difficulty = "large"
+category = "bugfix"
+keywords = [
+    "BioClaw",
+    "pr_diff",
+]
+
+[metadata.repo2env]
+pipeline = "pr_diff"
+pipeline_version = "0.3.0"
+repo = "Runchuan-BU/BioClaw"
+ref = "e4aa1e06f27d29c0baa205dfebe3135d38b67bb0"
+reference = "https://github.com/Runchuan-BU/BioClaw/pull/43"
+source_access = "auto"
+built_at = "2026-11-16T08:30:38.306542+00:00"
+reward_kinds = [
+    "diff_similarity",
+]
+spec_version = "0.2.0"
+content_hash = "sha256:f8dbba61838305e49d4ae8a77566a73cade86e4dff6020ae4ccbdb19e0a72822"
+
+[metadata.repo2env.pr_diff]
+pr_merged_at = "2026-04-27T02:29:06Z"
+diff_format = "unified"
+context_files = [
+    "UPGRADE-V2-UI.md",
+    "container/Dockerfile.viz",
+    "container/agent-runner/src/index.ts",
+    "src/channels/local-web/assets/v2/app.js",
+    "src/channels/local-web/assets/v2/index.html",
+    "src/channels/local-web/assets/v2/style.css",
+    "src/channels/local-web/channel.ts",
+    "src/container-runner.ts",
+    "src/index.ts",
+]
+
+[metadata.repo2env.reward_calibration]
+baseline_reward = 0.0
+loc_changed = 5841
+difficulty = "large"
+
+[metadata.repo2env.evaluation]
+schema_version = "1"
+status = "unverified"
+stage = "generation"
+reason_codes = [
+    "validation_not_run",
+]
+detail = "Generated task; validation has not been established."
+provenance = "unknown"
+evidence = []
+
+[metadata.repo2env.reproducibility]
+mode = "local_only"
+image_ref = "python:3.12-slim"
+image_tag = "python:3.12-slim"
+image_visibility = "private"
+
+[agent]
+timeout_sec = 1800.0
+
+[verifier]
+timeout_sec = 300.0

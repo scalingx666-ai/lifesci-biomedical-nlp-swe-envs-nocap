@@ -1,0 +1,16 @@
+diff --git a/src/index.ts b/src/index.ts
+index fb702ce..c6f0456 100644
+--- a/src/index.ts
++++ b/src/index.ts
+@@ -600,7 +600,10 @@ async function main(): Promise<void> {
+     registerGroup,
+     sendMessage: (jid, text) => sendToChannel(jid, text),
+     sendImage: (jid, imagePath, caption) => sendImageToChannel(jid, imagePath, caption),
+-    syncGroupMetadata: (force) => whatsapp?.syncGroupMetadata(force),
++    syncGroupMetadata: async (force) => {
++      if (!whatsapp) return;
++      await whatsapp.syncGroupMetadata(force);
++    },
+     getAvailableGroups,
+     writeGroupsSnapshot: (gf, im, ag, rj) => writeGroupsSnapshot(gf, im, ag, rj),
+   });

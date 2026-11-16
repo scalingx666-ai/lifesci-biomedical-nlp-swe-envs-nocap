@@ -1,0 +1,1037 @@
+diff --git a/README.md b/README.md
+index 5447468..1ad560e 100644
+--- a/README.md
++++ b/README.md
+@@ -54,7 +54,7 @@ Results — including images, plots, and structured reports — are delivered di
+ - macOS or Linux
+ - Node.js 20+
+ - Docker Desktop
+-- Anthropic API key
++- Anthropic API key or OpenRouter API key
+ 
+ ### Installation
+ 
+@@ -66,14 +66,51 @@ cd BioClaw
+ # Install dependencies
+ npm install
+ 
+-# Configure environment
+-cp .env.example .env
+-# Edit .env with your Anthropic API key and WhatsApp credentials
+-
+ # Start BioClaw
+ npm start
+ ```
+ 
++### Model Provider Configuration
++
++BioClaw now supports two provider paths:
++
++- **Anthropic** — default, keeps the original Claude Agent SDK flow
++- **OpenRouter / OpenAI-compatible** — optional path for OpenRouter and similar `/chat/completions` providers
++
++Create a `.env` file in the project root and choose **one** of the following setups.
++
++**Option A — Anthropic (default)**
++
++```bash
++ANTHROPIC_API_KEY=your_anthropic_key
++```
++
++**Option B — OpenRouter**
++
++```bash
++MODEL_PROVIDER=openrouter
++OPENROUTER_API_KEY=your_openrouter_key
++OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
++OPENROUTER_MODEL=openai/gpt-5.4
++```
++
++**Generic OpenAI-compatible setup**
++
++```bash
++MODEL_PROVIDER=openai-compatible
++OPENAI_COMPATIBLE_API_KEY=your_api_key
++OPENAI_COMPATIBLE_BASE_URL=https://your-provider.example/v1
++OPENAI_COMPATIBLE_MODEL=your-model-name
++```
++
++After updating `.env`, restart BioClaw:
++
++```bash
++npm run dev
++```
++
++When a container starts, `docker logs <container-name>` will show which provider path is active.
++
+ ### Usage
+ 
+ In any WhatsApp group where BioClaw is connected, simply message:
+diff --git a/README.zh-CN.md b/README.zh-CN.md
+index ea744b7..927249b 100644
+--- a/README.zh-CN.md
++++ b/README.zh-CN.md
+@@ -46,7 +46,7 @@ BioClaw 将常见的生物信息学任务带到聊天界面中。研究者可以
+ - macOS 或 Linux
+ - Node.js 20+
+ - Docker Desktop
+-- Anthropic API Key
++- Anthropic API Key 或 OpenRouter API Key
+ 
+ ### 安装
+ 
+@@ -54,10 +54,50 @@ BioClaw 将常见的生物信息学任务带到聊天界面中。研究者可以
+ git clone https://github.com/Runchuan-BU/BioClaw.git
+ cd BioClaw
+ npm install
+-cp .env.example .env
+ npm start
+ ```
+ 
++### 模型提供方配置
++
++BioClaw 现在支持两条模型路径：
++
++- **Anthropic**：默认路径，保留原来的 Claude Agent SDK 工作流
++- **OpenRouter / OpenAI-compatible**：可选路径，适合 OpenRouter 或其他兼容 `/chat/completions` 的服务
++
++请在项目根目录创建 `.env`，然后选择以下其中一种配置。
++
++**方案 A：Anthropic（默认）**
++
++```bash
++ANTHROPIC_API_KEY=your_anthropic_key
++```
++
++**方案 B：OpenRouter**
++
++```bash
++MODEL_PROVIDER=openrouter
++OPENROUTER_API_KEY=your_openrouter_key
++OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
++OPENROUTER_MODEL=openai/gpt-5.4
++```
++
++**通用 OpenAI-compatible 配置**
++
++```bash
++MODEL_PROVIDER=openai-compatible
++OPENAI_COMPATIBLE_API_KEY=your_api_key
++OPENAI_COMPATIBLE_BASE_URL=https://your-provider.example/v1
++OPENAI_COMPATIBLE_MODEL=your-model-name
++```
++
++修改 `.env` 后，重启 BioClaw：
++
++```bash
++npm run dev
++```
++
++容器启动后，可以通过 `docker logs <container-name>` 查看当前实际使用的是哪条 provider 路径。
++
+ ### 使用
+ 
+ 在已接入的群聊中发送：
+@@ -151,4 +191,3 @@ BioClaw/
+ ## 许可证
+ 
+ 本项目采用 MIT 许可证，详见 [LICENSE](LICENSE)。
+-
+diff --git a/container/agent-runner/src/index.ts b/container/agent-runner/src/index.ts
+index 94a89bc..1f1c0d6 100644
+--- a/container/agent-runner/src/index.ts
++++ b/container/agent-runner/src/index.ts
+@@ -16,8 +16,11 @@
+ 
+ import fs from 'fs';
+ import path from 'path';
++import { exec as execChildProcess } from 'child_process';
++import { randomUUID } from 'crypto';
+ import { query, HookCallback, PreCompactHookInput, PreToolUseHookInput } from '@anthropic-ai/claude-agent-sdk';
+ import { fileURLToPath } from 'url';
++import { promisify } from 'util';
+ 
+ interface ContainerInput {
+   prompt: string;
+@@ -57,6 +60,42 @@ interface SDKUserMessage {
+ const IPC_INPUT_DIR = '/workspace/ipc/input';
+ const IPC_INPUT_CLOSE_SENTINEL = path.join(IPC_INPUT_DIR, '_close');
+ const IPC_POLL_MS = 500;
++const IPC_DIR = '/workspace/ipc';
++const IPC_MESSAGES_DIR = path.join(IPC_DIR, 'messages');
++const IPC_TASKS_DIR = path.join(IPC_DIR, 'tasks');
++const IPC_FILES_DIR = path.join(IPC_DIR, 'files');
++const BASH_TIMEOUT_MS = 5 * 60 * 1000;
++const BASH_MAX_OUTPUT_CHARS = 12000;
++const OPENAI_TOOL_MAX_ITERATIONS = 24;
++const execAsync = promisify(execChildProcess);
++
++type ProviderKind = 'anthropic' | 'openai-compatible';
++
++interface ProviderConfig {
++  provider: ProviderKind;
++  apiKey?: string;
++  baseUrl?: string;
++  model?: string;
++}
++
++interface OpenAIChatMessage {
++  role: 'system' | 'user' | 'assistant' | 'tool';
++  content?: string | null;
++  tool_calls?: Array<{
++    id: string;
++    type: 'function';
++    function: { name: string; arguments: string };
++  }>;
++  tool_call_id?: string;
++}
++
++interface OpenAIChatResponse {
++  choices?: Array<{
++    message?: OpenAIChatMessage;
++    finish_reason?: string | null;
++  }>;
++  error?: { message?: string };
++}
+ 
+ /**
+  * Push-based async iterable for streaming user messages to the SDK.
+@@ -117,6 +156,124 @@ function log(message: string): void {
+   console.error(`[agent-runner] ${message}`);
+ }
+ 
++function truncateOutput(text: string | undefined | null, maxChars = BASH_MAX_OUTPUT_CHARS): string {
++  if (!text) return '';
++  return text.length > maxChars ? `${text.slice(0, maxChars)}\n... [truncated]` : text;
++}
++
++function writeIpcFile(dir: string, data: object): string {
++  fs.mkdirSync(dir, { recursive: true });
++  const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.json`;
++  const filePath = path.join(dir, filename);
++  const tmpPath = `${filePath}.tmp`;
++  fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2));
++  fs.renameSync(tmpPath, filePath);
++  return filename;
++}
++
++function queueIpcMessage(chatJid: string, groupFolder: string, text: string): string {
++  return writeIpcFile(IPC_MESSAGES_DIR, {
++    type: 'message',
++    chatJid,
++    text,
++    groupFolder,
++    timestamp: new Date().toISOString(),
++  });
++}
++
++function queueIpcImage(chatJid: string, groupFolder: string, filePath: string, caption?: string): string {
++  const ext = path.extname(filePath) || '.png';
++  fs.mkdirSync(IPC_FILES_DIR, { recursive: true });
++  const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`;
++  const destPath = path.join(IPC_FILES_DIR, filename);
++  fs.copyFileSync(filePath, destPath);
++
++  writeIpcFile(IPC_MESSAGES_DIR, {
++    type: 'image',
++    chatJid,
++    filePath: `files/${filename}`,
++    caption: caption || undefined,
++    groupFolder,
++    timestamp: new Date().toISOString(),
++  });
++
++  return filename;
++}
++
++function queueScheduledTask(
++  containerInput: ContainerInput,
++  args: { prompt: string; schedule_type: string; schedule_value: string; context_mode?: string; target_group_jid?: string },
++): string {
++  return writeIpcFile(IPC_TASKS_DIR, {
++    type: 'schedule_task',
++    prompt: args.prompt,
++    schedule_type: args.schedule_type,
++    schedule_value: args.schedule_value,
++    context_mode: args.context_mode || 'group',
++    targetJid: args.target_group_jid || containerInput.chatJid,
++    createdBy: containerInput.groupFolder,
++    timestamp: new Date().toISOString(),
++  });
++}
++
++function resolveProviderConfig(env: Record<string, string | undefined>): ProviderConfig {
++  const requestedProvider = (env.MODEL_PROVIDER || '').trim().toLowerCase();
++  const openRouterKey = env.OPENROUTER_API_KEY;
++  const openCompatibleKey = env.OPENAI_COMPATIBLE_API_KEY;
++
++  if (requestedProvider === 'anthropic' || (!requestedProvider && !openRouterKey && !openCompatibleKey)) {
++    return { provider: 'anthropic' };
++  }
++
++  const provider = requestedProvider === 'openrouter' || requestedProvider === 'openai-compatible'
++    ? 'openai-compatible'
++    : (openRouterKey || openCompatibleKey ? 'openai-compatible' : 'anthropic');
++
++  if (provider === 'anthropic') {
++    return { provider };
++  }
++
++  return {
++    provider,
++    apiKey: openRouterKey || openCompatibleKey,
++    baseUrl: env.OPENROUTER_BASE_URL || env.OPENAI_COMPATIBLE_BASE_URL || 'https://openrouter.ai/api/v1',
++    model: env.OPENROUTER_MODEL || env.OPENAI_COMPATIBLE_MODEL || 'openai/gpt-4.1-mini',
++  };
++}
++
++function getBioSystemPrompt(): string {
++  return [
++    '## BioClaw — Biology Research Assistant',
++    '',
++    'You are Bio, an AI biology research assistant running inside an isolated container.',
++    'You have full access to bioinformatics tools: BLAST+, SAMtools, BEDTools, BWA, minimap2, FastQC, seqtk, fastp, MultiQC, bcftools, tabix, pigz, salmon, kallisto, SRA Toolkit.',
++    'Python libraries: BioPython, pandas, NumPy, SciPy, matplotlib, seaborn, scikit-learn, RDKit, PyDESeq2, scanpy, pysam.',
++    '',
++    'When users ask biology questions, prefer running actual analysis over giving theoretical answers.',
++    'Use tools to produce real results. Prefer the Bash tool for running shell commands, Python scripts, and bioinformatics workflows.',
++    'Save output files to /workspace/group/ so users can access them.',
++    'When you generate an image file (such as PNG, JPG, or GIF), call the send_image tool so the user receives it in chat instead of only seeing a saved file path.',
++    "If you generate plots with Chinese labels via matplotlib, configure a Chinese-capable font first (try: 'Noto Sans CJK SC' or 'WenQuanYi Zen Hei') and set axes.unicode_minus=False to avoid missing glyphs and minus-sign issues.",
++    'Prioritize figures that look scientific, readable on a phone screen, and suitable for demos or slide decks.',
++    'Avoid overcrowded labels, tiny fonts, excessive legends, rainbow color noise, and default low-quality plotting styles.',
++    'Prefer clean layouts, restrained scientific color palettes, clear axis titles with units, and short informative titles.',
++    'Default plotting style guidance: use matplotlib/seaborn with dpi>=300, a generous figure size (usually at least 8x5 inches), tight layout, and large readable fonts.',
++    'If there are too many labels or points to annotate cleanly, annotate only the most important ones and keep the rest visually simple.',
++    'For publication-style plots, include only information that improves interpretation; do not clutter the image with long paragraphs of text.',
++    'Use these task-specific figure patterns when relevant:',
++    '- Volcano plots: balanced red/blue/gray palette, significance threshold lines, minimal labels on top hits only, and readable axis names.',
++    '- QC summary plots: compact multi-panel layout, consistent colors, short labels, and clear sample ordering.',
++    '- Protein structure renders: prefer clean cartoon/surface representations, high-resolution output, sensible orientation, and focused highlighting of the biologically relevant region.',
++    'Reusable built-in scripts are available and should be preferred for consistent output when they fit the task:',
++    '- /home/node/.claude/skills/bio-tools/volcano_plot_template.py',
++    '- /home/node/.claude/skills/bio-tools/qc_summary_plot_template.py',
++    '- /home/node/.claude/skills/bio-tools/pymol_render_template.py',
++    'Before sending an image, quickly sanity-check that labels are legible, colors are not confusing, and the figure communicates one clear message.',
++    'Keep messages concise and action-oriented, and mention important output file paths when relevant.',
++    '',
++  ].join('\n');
++}
++
+ function getSessionSummary(sessionId: string, transcriptPath: string): string | null {
+   const projectDir = path.dirname(transcriptPath);
+   const indexPath = path.join(projectDir, 'sessions-index.json');
+@@ -187,7 +344,12 @@ function createPreCompactHook(): HookCallback {
+ // Secrets to strip from Bash tool subprocess environments.
+ // These are needed by claude-code for API auth but should never
+ // be visible to commands Kit runs.
+-const SECRET_ENV_VARS = ['ANTHROPIC_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN'];
++const SECRET_ENV_VARS = [
++  'ANTHROPIC_API_KEY',
++  'CLAUDE_CODE_OAUTH_TOKEN',
++  'OPENROUTER_API_KEY',
++  'OPENAI_COMPATIBLE_API_KEY',
++];
+ 
+ function createSanitizeBashHook(): HookCallback {
+   return async (input, _toolUseId, _context) => {
+@@ -391,20 +553,9 @@ async function runQuery(
+   let resultCount = 0;
+ 
+   // BioClaw: inject biology-specific system context
+-  const bioSystemPrompt = [
+-    '## BioClaw — Biology Research Assistant',
+-    '',
+-    'You are Bio, an AI biology research assistant running inside an isolated container.',
+-    'You have full access to bioinformatics tools: BLAST+, SAMtools, BEDTools, BWA, minimap2, FastQC, seqtk.',
+-    'Python libraries: BioPython, pandas, NumPy, SciPy, matplotlib, seaborn, scikit-learn, RDKit, PyDESeq2, scanpy, pysam.',
+-    '',
+-    'When users ask biology questions, prefer running actual analysis over giving theoretical answers.',
+-    'Write and execute Python scripts or bash commands to produce real results.',
+-    'Save output files to /workspace/group/ so users can access them.',
+-    'When you generate an image file (such as PNG, JPG, or GIF), call mcp__bioclaw__send_image to send it to the user instead of only mentioning the saved file path in text.',
+-    "If you generate plots with Chinese labels via matplotlib, configure a Chinese-capable font first (try: 'Noto Sans CJK SC' or 'WenQuanYi Zen Hei') and set axes.unicode_minus=False to avoid missing glyphs and minus-sign issues.",
+-    '',
+-  ].join('\n');
++  const bioSystemPrompt = getBioSystemPrompt()
++    .replace('send_image tool', 'mcp__bioclaw__send_image')
++    .replace('Use tools to produce real results. Prefer the Bash tool for running shell commands, Python scripts, and bioinformatics workflows.', 'Write and execute Python scripts or bash commands to produce real results.');
+ 
+   // Load global CLAUDE.md as additional system context (shared across all groups)
+   const globalClaudeMdPath = '/workspace/global/CLAUDE.md';
+@@ -504,6 +655,246 @@ async function runQuery(
+   return { newSessionId, lastAssistantUuid, closedDuringQuery };
+ }
+ 
++function getOpenAICompatibleTools() {
++  return [
++    {
++      type: 'function',
++      function: {
++        name: 'bash',
++        description: 'Run a shell command inside the BioClaw container. Use this for bioinformatics tools, Python scripts, file inspection, and data processing.',
++        parameters: {
++          type: 'object',
++          properties: {
++            command: { type: 'string', description: 'Shell command to execute.' },
++          },
++          required: ['command'],
++          additionalProperties: false,
++        },
++      },
++    },
++    {
++      type: 'function',
++      function: {
++        name: 'send_message',
++        description: 'Send a text message to the current chat while your analysis is still running.',
++        parameters: {
++          type: 'object',
++          properties: {
++            text: { type: 'string', description: 'Message text to send.' },
++          },
++          required: ['text'],
++          additionalProperties: false,
++        },
++      },
++    },
++    {
++      type: 'function',
++      function: {
++        name: 'send_image',
++        description: 'Send an image file from the container to the current chat.',
++        parameters: {
++          type: 'object',
++          properties: {
++            file_path: { type: 'string', description: 'Absolute image path inside the container.' },
++            caption: { type: 'string', description: 'Optional image caption.' },
++          },
++          required: ['file_path'],
++          additionalProperties: false,
++        },
++      },
++    },
++    {
++      type: 'function',
++      function: {
++        name: 'schedule_task',
++        description: 'Schedule a recurring or one-time task for this chat.',
++        parameters: {
++          type: 'object',
++          properties: {
++            prompt: { type: 'string' },
++            schedule_type: { type: 'string', enum: ['cron', 'interval', 'once'] },
++            schedule_value: { type: 'string' },
++            context_mode: { type: 'string', enum: ['group', 'isolated'] },
++            target_group_jid: { type: 'string' },
++          },
++          required: ['prompt', 'schedule_type', 'schedule_value'],
++          additionalProperties: false,
++        },
++      },
++    },
++  ] as const;
++}
++
++async function runBashTool(command: string, env: Record<string, string | undefined>): Promise<string> {
++  const safeEnv = { ...env } as Record<string, string | undefined>;
++  for (const secretVar of SECRET_ENV_VARS) {
++    delete safeEnv[secretVar];
++  }
++
++  try {
++    const { stdout, stderr } = await execAsync(command, {
++      cwd: '/workspace/group',
++      env: Object.fromEntries(
++        Object.entries(safeEnv).filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
++      ),
++      timeout: BASH_TIMEOUT_MS,
++      maxBuffer: 10 * 1024 * 1024,
++      shell: '/bin/bash',
++    });
++
++    const combined = [stdout, stderr].filter(Boolean).join(stderr && stdout ? '\n' : '');
++    return truncateOutput(combined || 'Command completed with no output.');
++  } catch (err) {
++    const error = err as { stdout?: string; stderr?: string; message?: string };
++    const combined = [error.stdout, error.stderr, error.message].filter(Boolean).join('\n');
++    return `Command failed.\n${truncateOutput(combined || 'Unknown error.')}`;
++  }
++}
++
++async function executeOpenAIToolCall(
++  toolName: string,
++  rawArgs: string,
++  containerInput: ContainerInput,
++  env: Record<string, string | undefined>,
++): Promise<string> {
++  let args: Record<string, string> = {};
++  try {
++    args = rawArgs ? JSON.parse(rawArgs) : {};
++  } catch {
++    return `Invalid JSON tool arguments for ${toolName}: ${rawArgs}`;
++  }
++
++  switch (toolName) {
++    case 'bash':
++      if (!args.command) return 'Missing required argument: command';
++      return runBashTool(args.command, env);
++    case 'send_message':
++      if (!args.text) return 'Missing required argument: text';
++      queueIpcMessage(containerInput.chatJid, containerInput.groupFolder, args.text);
++      return 'Message queued for sending.';
++    case 'send_image':
++      if (!args.file_path) return 'Missing required argument: file_path';
++      if (!fs.existsSync(args.file_path)) return `File not found: ${args.file_path}`;
++      queueIpcImage(containerInput.chatJid, containerInput.groupFolder, args.file_path, args.caption);
++      return `Image queued for sending from ${args.file_path}`;
++    case 'schedule_task':
++      if (!args.prompt || !args.schedule_type || !args.schedule_value) {
++        return 'Missing one of required arguments: prompt, schedule_type, schedule_value';
++      }
++      queueScheduledTask(containerInput, {
++        prompt: args.prompt,
++        schedule_type: args.schedule_type,
++        schedule_value: args.schedule_value,
++        context_mode: args.context_mode,
++        target_group_jid: args.target_group_jid,
++      });
++      return `Scheduled task queued (${args.schedule_type}: ${args.schedule_value}).`;
++    default:
++      return `Unknown tool: ${toolName}`;
++  }
++}
++
++async function callOpenAICompatibleApi(
++  providerConfig: ProviderConfig,
++  messages: OpenAIChatMessage[],
++) {
++  if (!providerConfig.apiKey || !providerConfig.baseUrl || !providerConfig.model) {
++    throw new Error('OpenAI-compatible provider is missing apiKey, baseUrl, or model');
++  }
++
++  const baseUrl = providerConfig.baseUrl.replace(/\/+$/, '');
++  const response = await fetch(`${baseUrl}/chat/completions`, {
++    method: 'POST',
++    headers: {
++      'Authorization': `Bearer ${providerConfig.apiKey}`,
++      'Content-Type': 'application/json',
++      'HTTP-Referer': 'https://github.com/Runchuan-BU/BioClaw',
++      'X-Title': 'BioClaw',
++    },
++    body: JSON.stringify({
++      model: providerConfig.model,
++      messages,
++      tools: getOpenAICompatibleTools(),
++      tool_choice: 'auto',
++      temperature: 0.2,
++    }),
++  });
++
++  const data = await response.json() as OpenAIChatResponse;
++  if (!response.ok) {
++    throw new Error(data.error?.message || `Provider request failed with status ${response.status}`);
++  }
++
++  const message = data.choices?.[0]?.message;
++  if (!message) {
++    throw new Error('Provider returned no message choices');
++  }
++
++  return message;
++}
++
++async function runOpenAICompatibleConversation(
++  prompt: string,
++  sessionId: string | undefined,
++  containerInput: ContainerInput,
++  env: Record<string, string | undefined>,
++  providerConfig: ProviderConfig,
++  existingMessages?: OpenAIChatMessage[],
++): Promise<{ newSessionId: string; closedDuringQuery: boolean; messages: OpenAIChatMessage[] }> {
++  const newSessionId = sessionId || `openai-compatible:${randomUUID()}`;
++  const messages: OpenAIChatMessage[] = existingMessages
++    ? [...existingMessages, { role: 'user', content: prompt }]
++    : (() => {
++        const bioSystemPrompt = getBioSystemPrompt();
++        const globalClaudeMdPath = '/workspace/global/CLAUDE.md';
++        const globalContent = fs.existsSync(globalClaudeMdPath)
++          ? fs.readFileSync(globalClaudeMdPath, 'utf-8')
++          : '';
++        return [
++          { role: 'system', content: bioSystemPrompt + globalContent },
++          { role: 'user', content: prompt },
++        ];
++      })();
++
++  let toolIterations = 0;
++  while (toolIterations < OPENAI_TOOL_MAX_ITERATIONS) {
++    toolIterations += 1;
++    const assistantMessage = await callOpenAICompatibleApi(providerConfig, messages);
++
++    messages.push({
++      role: 'assistant',
++      content: assistantMessage.content || '',
++      tool_calls: assistantMessage.tool_calls,
++    });
++
++    if (!assistantMessage.tool_calls || assistantMessage.tool_calls.length === 0) {
++      writeOutput({
++        status: 'success',
++        result: assistantMessage.content || '',
++        newSessionId,
++      });
++      return { newSessionId, closedDuringQuery: false, messages };
++    }
++
++    for (const toolCall of assistantMessage.tool_calls) {
++      const toolResult = await executeOpenAIToolCall(
++        toolCall.function.name,
++        toolCall.function.arguments,
++        containerInput,
++        env,
++      );
++
++      messages.push({
++        role: 'tool',
++        tool_call_id: toolCall.id,
++        content: toolResult,
++      });
++    }
++  }
++
++  throw new Error(`OpenAI-compatible agent exceeded ${OPENAI_TOOL_MAX_ITERATIONS} tool iterations`);
++}
++
+ async function main(): Promise<void> {
+   let containerInput: ContainerInput;
+ 
+@@ -528,11 +919,14 @@ async function main(): Promise<void> {
+   for (const [key, value] of Object.entries(containerInput.secrets || {})) {
+     sdkEnv[key] = value;
+   }
++  const providerConfig = resolveProviderConfig(sdkEnv);
++  log(`Using provider: ${providerConfig.provider}${providerConfig.model ? ` (${providerConfig.model})` : ''}`);
+ 
+   const __dirname = path.dirname(fileURLToPath(import.meta.url));
+   const mcpServerPath = path.join(__dirname, 'ipc-mcp-stdio.js');
+ 
+   let sessionId = containerInput.sessionId;
++  let openAiMessages: OpenAIChatMessage[] | undefined;
+   fs.mkdirSync(IPC_INPUT_DIR, { recursive: true });
+ 
+   // Clean up stale _close sentinel from previous container runs
+@@ -555,20 +949,36 @@ async function main(): Promise<void> {
+     while (true) {
+       log(`Starting query (session: ${sessionId || 'new'}, resumeAt: ${resumeAt || 'latest'})...`);
+ 
+-      const queryResult = await runQuery(prompt, sessionId, mcpServerPath, containerInput, sdkEnv, resumeAt);
+-      if (queryResult.newSessionId) {
++      if (providerConfig.provider === 'anthropic') {
++        const queryResult = await runQuery(prompt, sessionId, mcpServerPath, containerInput, sdkEnv, resumeAt);
++        if (queryResult.newSessionId) {
++          sessionId = queryResult.newSessionId;
++        }
++        if (queryResult.lastAssistantUuid) {
++          resumeAt = queryResult.lastAssistantUuid;
++        }
++
++        if (queryResult.closedDuringQuery) {
++          log('Close sentinel consumed during query, exiting');
++          break;
++        }
++      } else {
++        const queryResult = await runOpenAICompatibleConversation(
++          prompt,
++          sessionId,
++          containerInput,
++          sdkEnv,
++          providerConfig,
++          openAiMessages,
++        );
+         sessionId = queryResult.newSessionId;
+-      }
+-      if (queryResult.lastAssistantUuid) {
+-        resumeAt = queryResult.lastAssistantUuid;
+-      }
++        resumeAt = undefined;
++        openAiMessages = queryResult.messages;
+ 
+-      // If _close was consumed during the query, exit immediately.
+-      // Don't emit a session-update marker (it would reset the host's
+-      // idle timer and cause a 30-min delay before the next _close).
+-      if (queryResult.closedDuringQuery) {
+-        log('Close sentinel consumed during query, exiting');
+-        break;
++        if (queryResult.closedDuringQuery) {
++          log('Close sentinel consumed during query, exiting');
++          break;
++        }
+       }
+ 
+       // Emit session update so host can track it
+diff --git a/container/skills/bio-tools/SKILL.md b/container/skills/bio-tools/SKILL.md
+index 6379a44..49b9a00 100644
+--- a/container/skills/bio-tools/SKILL.md
++++ b/container/skills/bio-tools/SKILL.md
+@@ -103,3 +103,68 @@ print(f"LogP: {Descriptors.MolLogP(mol):.2f}")
+ - For large files, prefer streaming with `SeqIO.parse()` over `SeqIO.read()`
+ - Save plots to files (`plt.savefig("/workspace/group/plot.png")`) since there's no display
+ - Write output files to `/workspace/group/` so the user can access them
++
++## Reusable Figure Templates
++
++Prefer these built-in scripts when creating common BioClaw figures, instead of writing one-off plotting code from scratch.
++
++### Volcano Plot Template
++Path:
++
++```bash
++/home/node/.claude/skills/bio-tools/volcano_plot_template.py
++```
++
++Example:
++
++```bash
++python /home/node/.claude/skills/bio-tools/volcano_plot_template.py \
++  --input /workspace/group/counts.csv \
++  --output /workspace/group/volcano_plot.png \
++  --title "Differential Expression Volcano Plot"
++```
++
++Expected columns by default: `gene`, `log2FC`, `pvalue`
++
++### QC Summary Plot Template
++Path:
++
++```bash
++/home/node/.claude/skills/bio-tools/qc_summary_plot_template.py
++```
++
++Example:
++
++```bash
++python /home/node/.claude/skills/bio-tools/qc_summary_plot_template.py \
++  --input /workspace/group/qc_metrics.csv \
++  --output /workspace/group/qc_summary.png \
++  --title "Sequencing QC Summary"
++```
++
++Expected sample column by default: `sample`
++
++Useful metric columns: `total_reads`, `q30_pct`, `gc_pct`, `duplication_pct`
++
++### PyMOL Render Template
++Path:
++
++```bash
++/home/node/.claude/skills/bio-tools/pymol_render_template.py
++```
++
++Examples:
++
++```bash
++python /home/node/.claude/skills/bio-tools/pymol_render_template.py \
++  --input 1M17 \
++  --output /workspace/group/1m17_render.png \
++  --highlight-selection "resn AQ4"
++```
++
++```bash
++python /home/node/.claude/skills/bio-tools/pymol_render_template.py \
++  --input /workspace/group/structure.pdb \
++  --output /workspace/group/structure_render.png \
++  --style cartoon
++```
+diff --git a/container/skills/bio-tools/pymol_render_template.py b/container/skills/bio-tools/pymol_render_template.py
+new file mode 100644
+index 0000000..8f13c99
+--- /dev/null
++++ b/container/skills/bio-tools/pymol_render_template.py
+@@ -0,0 +1,61 @@
++#!/usr/bin/env python3
++import argparse
++from pathlib import Path
++
++from pymol import cmd
++
++
++def build_parser() -> argparse.ArgumentParser:
++    parser = argparse.ArgumentParser(description="Render a clean protein structure image with PyMOL.")
++    parser.add_argument("--input", required=True, help="PDB/mmCIF file path or 4-character PDB ID.")
++    parser.add_argument("--output", required=True, help="Output image path.")
++    parser.add_argument("--title", default="", help="Optional title stored in PyMOL scene name.")
++    parser.add_argument("--highlight-selection", default="", help="Optional PyMOL selection to highlight.")
++    parser.add_argument("--highlight-color", default="tv_orange", help="Color for highlight selection.")
++    parser.add_argument("--width", type=int, default=1800, help="Output image width in pixels.")
++    parser.add_argument("--height", type=int, default=1400, help="Output image height in pixels.")
++    parser.add_argument("--style", choices=["cartoon", "surface"], default="cartoon", help="Main representation style.")
++    return parser
++
++
++def load_structure(input_value: str) -> None:
++    input_path = Path(input_value)
++    if input_path.exists():
++        cmd.load(str(input_path), "structure")
++    elif len(input_value) == 4 and input_value.isalnum():
++        cmd.fetch(input_value, name="structure", type="pdb1")
++    else:
++        raise SystemExit(f"Input not found and does not look like a PDB ID: {input_value}")
++
++
++def main() -> None:
++    args = build_parser().parse_args()
++    output_path = Path(args.output)
++    output_path.parent.mkdir(parents=True, exist_ok=True)
++
++    cmd.reinitialize()
++    load_structure(args.input)
++
++    cmd.remove("solvent")
++    cmd.hide("everything", "all")
++    cmd.show(args.style, "polymer.protein")
++    cmd.color("gray80", "polymer.protein")
++    cmd.set("cartoon_fancy_helices", 1)
++    cmd.set("ray_opaque_background", 0)
++    cmd.bg_color("white")
++    cmd.orient("all")
++    cmd.zoom("all", buffer=3.0)
++
++    if args.highlight_selection:
++        cmd.show("sticks", args.highlight_selection)
++        cmd.color(args.highlight_color, args.highlight_selection)
++
++    if args.title:
++        cmd.scene(args.title, "store")
++
++    cmd.ray(args.width, args.height)
++    cmd.png(str(output_path), width=args.width, height=args.height, dpi=300, ray=1)
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/container/skills/bio-tools/qc_summary_plot_template.py b/container/skills/bio-tools/qc_summary_plot_template.py
+new file mode 100644
+index 0000000..dbffd96
+--- /dev/null
++++ b/container/skills/bio-tools/qc_summary_plot_template.py
+@@ -0,0 +1,87 @@
++#!/usr/bin/env python3
++import argparse
++from pathlib import Path
++
++import matplotlib.pyplot as plt
++import pandas as pd
++import seaborn as sns
++
++
++DEFAULT_COLUMNS = [
++    "total_reads",
++    "q30_pct",
++    "gc_pct",
++    "duplication_pct",
++]
++
++
++def build_parser() -> argparse.ArgumentParser:
++    parser = argparse.ArgumentParser(description="Create a compact QC summary plot from a CSV/TSV table.")
++    parser.add_argument("--input", required=True, help="QC summary table in CSV/TSV format.")
++    parser.add_argument("--output", required=True, help="Output PNG path.")
++    parser.add_argument("--title", default="QC Summary", help="Plot title.")
++    parser.add_argument("--sample-col", default="sample", help="Sample column name.")
++    parser.add_argument(
++        "--metrics",
++        nargs="*",
++        default=DEFAULT_COLUMNS,
++        help="Metric columns to visualize. Missing columns are skipped.",
++    )
++    return parser
++
++
++def read_table(input_path: Path) -> pd.DataFrame:
++    suffix = input_path.suffix.lower()
++    sep = "\t" if suffix in {".tsv", ".txt"} else ","
++    return pd.read_csv(input_path, sep=sep)
++
++
++def main() -> None:
++    args = build_parser().parse_args()
++    input_path = Path(args.input)
++    output_path = Path(args.output)
++    output_path.parent.mkdir(parents=True, exist_ok=True)
++
++    df = read_table(input_path).copy()
++    if args.sample_col not in df.columns:
++        raise SystemExit(f"Missing sample column: {args.sample_col}")
++
++    metrics = [metric for metric in args.metrics if metric in df.columns]
++    if not metrics:
++        raise SystemExit(
++            f"None of the requested metrics were found. Available columns: {', '.join(df.columns)}"
++        )
++
++    sns.set_theme(style="whitegrid", context="talk")
++    rows = 2 if len(metrics) > 2 else 1
++    cols = 2 if len(metrics) > 1 else 1
++    fig, axes = plt.subplots(rows, cols, figsize=(12, 6 if rows == 1 else 8), dpi=300)
++    axes_list = axes.flatten() if hasattr(axes, "flatten") else [axes]
++    palette = sns.color_palette("Blues_r", n_colors=max(len(df), 3))
++
++    for index, metric in enumerate(metrics):
++        ax = axes_list[index]
++        metric_df = df.sort_values(metric, ascending=False)
++        sns.barplot(
++            data=metric_df,
++            x=args.sample_col,
++            y=metric,
++            palette=palette,
++            ax=ax,
++        )
++        ax.set_title(metric.replace("_", " ").title(), fontsize=13, weight="bold")
++        ax.set_xlabel("")
++        ax.set_ylabel(metric.replace("_", " ").title(), fontsize=11)
++        ax.tick_params(axis="x", rotation=35, labelsize=9)
++        ax.tick_params(axis="y", labelsize=9)
++
++    for index in range(len(metrics), len(axes_list)):
++        axes_list[index].axis("off")
++
++    fig.suptitle(args.title, fontsize=17, weight="bold", y=1.02)
++    plt.tight_layout()
++    fig.savefig(output_path, dpi=300, bbox_inches="tight")
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/container/skills/bio-tools/volcano_plot_template.py b/container/skills/bio-tools/volcano_plot_template.py
+new file mode 100644
+index 0000000..86172d4
+--- /dev/null
++++ b/container/skills/bio-tools/volcano_plot_template.py
+@@ -0,0 +1,103 @@
++#!/usr/bin/env python3
++import argparse
++import math
++from pathlib import Path
++
++import matplotlib.pyplot as plt
++import pandas as pd
++import seaborn as sns
++
++
++def build_parser() -> argparse.ArgumentParser:
++    parser = argparse.ArgumentParser(description="Create a publication-style volcano plot.")
++    parser.add_argument("--input", required=True, help="CSV/TSV file with gene, log2FC, and pvalue columns.")
++    parser.add_argument("--output", required=True, help="Output PNG path.")
++    parser.add_argument("--title", default="Volcano Plot", help="Plot title.")
++    parser.add_argument("--fc-col", default="log2FC", help="Fold-change column.")
++    parser.add_argument("--p-col", default="pvalue", help="P-value column.")
++    parser.add_argument("--label-col", default="gene", help="Label column.")
++    parser.add_argument("--fc-threshold", type=float, default=1.0, help="Absolute log2 fold-change threshold.")
++    parser.add_argument("--p-threshold", type=float, default=0.05, help="P-value significance threshold.")
++    parser.add_argument("--top-labels", type=int, default=12, help="Maximum number of labels to annotate.")
++    return parser
++
++
++def read_table(input_path: Path) -> pd.DataFrame:
++    suffix = input_path.suffix.lower()
++    sep = "\t" if suffix in {".tsv", ".txt"} else ","
++    return pd.read_csv(input_path, sep=sep)
++
++
++def main() -> None:
++    args = build_parser().parse_args()
++    input_path = Path(args.input)
++    output_path = Path(args.output)
++    output_path.parent.mkdir(parents=True, exist_ok=True)
++
++    df = read_table(input_path).copy()
++    required = {args.fc_col, args.p_col, args.label_col}
++    missing = required.difference(df.columns)
++    if missing:
++        raise SystemExit(f"Missing required columns: {', '.join(sorted(missing))}")
++
++    df = df[[args.label_col, args.fc_col, args.p_col]].dropna().copy()
++    df["neg_log10_p"] = -df[args.p_col].clip(lower=1e-300).map(math.log10)
++
++    def classify(row: pd.Series) -> str:
++        if row[args.p_col] < args.p_threshold and row[args.fc_col] >= args.fc_threshold:
++            return "Upregulated"
++        if row[args.p_col] < args.p_threshold and row[args.fc_col] <= -args.fc_threshold:
++            return "Downregulated"
++        return "Not significant"
++
++    df["group"] = df.apply(classify, axis=1)
++
++    palette = {
++        "Upregulated": "#C0392B",
++        "Downregulated": "#2E86C1",
++        "Not significant": "#B3B6B7",
++    }
++
++    sns.set_theme(style="whitegrid", context="talk")
++    fig, ax = plt.subplots(figsize=(9, 6), dpi=300)
++    sns.scatterplot(
++        data=df,
++        x=args.fc_col,
++        y="neg_log10_p",
++        hue="group",
++        palette=palette,
++        s=24,
++        linewidth=0,
++        alpha=0.85,
++        ax=ax,
++    )
++
++    ax.axvline(args.fc_threshold, color="#7F8C8D", linestyle="--", linewidth=1)
++    ax.axvline(-args.fc_threshold, color="#7F8C8D", linestyle="--", linewidth=1)
++    ax.axhline(-math.log10(args.p_threshold), color="#7F8C8D", linestyle="--", linewidth=1)
++
++    label_candidates = df[df["group"] != "Not significant"].copy()
++    label_candidates["label_score"] = label_candidates["neg_log10_p"] * label_candidates[args.fc_col].abs()
++    label_candidates = label_candidates.nlargest(args.top_labels, "label_score")
++
++    for _, row in label_candidates.iterrows():
++        ax.text(
++            row[args.fc_col],
++            row["neg_log10_p"] + 0.08,
++            str(row[args.label_col]),
++            fontsize=9,
++            ha="center",
++            va="bottom",
++        )
++
++    ax.set_title(args.title, fontsize=16, weight="bold")
++    ax.set_xlabel("log2 Fold Change", fontsize=13)
++    ax.set_ylabel("-log10(p-value)", fontsize=13)
++    ax.legend(title="", frameon=False, loc="upper right")
++    sns.despine(ax=ax)
++    plt.tight_layout()
++    fig.savefig(output_path, dpi=300, bbox_inches="tight")
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/src/container-runner.ts b/src/container-runner.ts
+index 2c0e65f..a398daf 100644
+--- a/src/container-runner.ts
++++ b/src/container-runner.ts
+@@ -189,7 +189,17 @@ function readSecrets(): Record<string, string> {
+   const envFile = path.join(process.cwd(), '.env');
+   if (!fs.existsSync(envFile)) return {};
+ 
+-  const allowedVars = ['CLAUDE_CODE_OAUTH_TOKEN', 'ANTHROPIC_API_KEY'];
++  const allowedVars = [
++    'CLAUDE_CODE_OAUTH_TOKEN',
++    'ANTHROPIC_API_KEY',
++    'MODEL_PROVIDER',
++    'OPENROUTER_API_KEY',
++    'OPENROUTER_BASE_URL',
++    'OPENROUTER_MODEL',
++    'OPENAI_COMPATIBLE_API_KEY',
++    'OPENAI_COMPATIBLE_BASE_URL',
++    'OPENAI_COMPATIBLE_MODEL',
++  ];
+   const secrets: Record<string, string> = {};
+   const content = fs.readFileSync(envFile, 'utf-8');
+ 

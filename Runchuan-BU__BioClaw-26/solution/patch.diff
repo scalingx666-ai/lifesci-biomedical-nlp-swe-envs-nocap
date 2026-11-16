@@ -1,0 +1,915 @@
+diff --git a/.env.example b/.env.example
+index 114527a..17ac1f7 100644
+--- a/.env.example
++++ b/.env.example
+@@ -44,6 +44,14 @@ WECOM_SECRET=your-secret
+ # WECOM_AGENT_ID=your-agent-id
+ # WECOM_CORP_SECRET=your-corp-secret
+ 
++# ─── QQ Official Bot — Optional ───────────
++
++# Current QQ support covers official QQ Bot text receive/reply over WebSocket.
++# Supported inbound events: private chat messages and group @bot messages.
++# QQ_APP_ID=your-app-id
++# QQ_CLIENT_SECRET=your-client-secret
++# QQ_SANDBOX=false
++
+ # ─── Feishu (Lark) — Optional ───────────────
+ 
+ # Current Feishu support covers text receive/reply.
+diff --git a/README.md b/README.md
+index b35f7e5..1db81a6 100644
+--- a/README.md
++++ b/README.md
+@@ -159,7 +159,7 @@ In any connected chat, simply message:
+ 
+ ## Messaging channels
+ 
+-Supported platforms include **WhatsApp** (default), **Feishu (Lark)**, **WeCom**, **Discord**, **Slack** (Socket Mode), **WeChat Personal** (experimental), and optional **local web** (browser) chat. Full setup steps, env vars, and disabling channels are in **[docs/CHANNELS.md](docs/CHANNELS.md)** (简体中文：[docs/CHANNELS.zh-CN.md](docs/CHANNELS.zh-CN.md)).
++Supported platforms include **WhatsApp** (default), **QQ Official Bot**, **Feishu (Lark)**, **WeCom**, **Discord**, **Slack** (Socket Mode), **WeChat Personal** (experimental), and optional **local web** (browser) chat. Full setup steps, env vars, and disabling channels are in **[docs/CHANNELS.md](docs/CHANNELS.md)** (简体中文：[docs/CHANNELS.zh-CN.md](docs/CHANNELS.zh-CN.md)).
+ 
+ **Lab trace** (SSE timeline, workspace tree) is built into the local web UI — no extra config needed. See **[docs/DASHBOARD.md](docs/DASHBOARD.md)**.
+ 
+diff --git a/README.zh-CN.md b/README.zh-CN.md
+index 45531bf..ddfbdfe 100644
+--- a/README.zh-CN.md
++++ b/README.zh-CN.md
+@@ -38,7 +38,7 @@ BioClaw 将常见的生物信息学任务带到聊天界面中。研究者可以
+ - 差异分析可视化（火山图等）
+ - 文献检索与摘要
+ 
+-默认通道为 WhatsApp；飞书、企业微信、Discord、Slack、本地网页等配置见 **[docs/CHANNELS.zh-CN.md](docs/CHANNELS.zh-CN.md)**。飞书的完整配置、OpenRouter 设置、群聊限制与排障见 **[docs/FEISHU_SETUP.zh-CN.md](docs/FEISHU_SETUP.zh-CN.md)**。QQ 相关截图仍为路线图示意，详见该文档。
++默认通道为 WhatsApp；QQ 官方 Bot、飞书、企业微信、Discord、Slack、本地网页等配置见 **[docs/CHANNELS.zh-CN.md](docs/CHANNELS.zh-CN.md)**。飞书的完整配置、OpenRouter 设置、群聊限制与排障见 **[docs/FEISHU_SETUP.zh-CN.md](docs/FEISHU_SETUP.zh-CN.md)**；QQ 的完整步骤与排障见 **[docs/QQ_SETUP.zh-CN.md](docs/QQ_SETUP.zh-CN.md)**。
+ 
+ ## 快速开始
+ 
+diff --git a/docs/CHANNELS.md b/docs/CHANNELS.md
+index fb7cebc..85a42f3 100644
+--- a/docs/CHANNELS.md
++++ b/docs/CHANNELS.md
+@@ -50,6 +50,37 @@ The server IP must be on that app’s trusted IP whitelist.
+ 
+ ---
+ 
++## QQ Official Bot
++
++BioClaw currently supports **official QQ Bot** text receive/reply over **WebSocket**.
++
++Supported inbound events in the current MVP:
++- `C2C_MESSAGE_CREATE` for private chat messages
++- `GROUP_AT_MESSAGE_CREATE` for group `@bot` messages
++
++1. Create a bot app in the QQ Open Platform (`q.qq.com`).
++2. Enable **WebSocket** event delivery for the bot.
++3. Subscribe the private-chat and group-@bot message events (the current implementation listens with `1 << 25`, the combined group/C2C intent documented by QQ Bot).
++4. Add these variables to `.env`:
++
++   ```bash
++   QQ_APP_ID=your-app-id
++   QQ_CLIENT_SECRET=your-client-secret
++   # Optional: use QQ sandbox gateway/API endpoints
++   # QQ_SANDBOX=true
++   ```
++
++5. Start BioClaw. The first private message or group `@bot` message auto-registers that conversation.
++
++Current limits:
++- Official QQ Bot only; no personal QQ automation
++- Text-only send/receive in this first version
++- Group replies are intended for `@bot` message flows
++
++Chinese setup notes: [QQ_SETUP.zh-CN.md](QQ_SETUP.zh-CN.md)
++
++---
++
+ ## Feishu (Lark)
+ 
+ BioClaw currently supports **text receive/reply** for Feishu bots. Start with **WebSocket mode** if possible; use webhook mode only when your deployment requires inbound HTTP callbacks.
+diff --git a/docs/CHANNELS.zh-CN.md b/docs/CHANNELS.zh-CN.md
+index 1b34c0d..76fde35 100644
+--- a/docs/CHANNELS.zh-CN.md
++++ b/docs/CHANNELS.zh-CN.md
+@@ -51,6 +51,37 @@ WECOM_CORP_SECRET=应用 Secret
+ 
+ ---
+ 
++## QQ 官方 Bot
++
++BioClaw 当前已支持 **QQ 官方 Bot** 的**文本消息收发**，接入方式为 **WebSocket**。
++
++当前 MVP 支持的入站事件：
++- `C2C_MESSAGE_CREATE`：QQ 私聊机器人
++- `GROUP_AT_MESSAGE_CREATE`：群里 `@` 机器人
++
++1. 在 QQ 开放平台创建机器人应用。
++2. 在机器人配置里启用 **WebSocket** 接收事件。
++3. 订阅私聊消息和群聊 `@机器人` 消息事件。
++4. 在 `.env` 中至少配置：
++
++   ```bash
++   QQ_APP_ID=your-app-id
++   QQ_CLIENT_SECRET=your-client-secret
++   # 可选：若使用 QQ 沙盒环境
++   # QQ_SANDBOX=true
++   ```
++
++5. 启动 BioClaw 后，第一条私聊消息或群里 `@机器人` 的消息会自动注册该会话。
++
++当前限制：
++- 仅支持 **官方 QQ Bot**，不支持个人 QQ 自动化
++- 第一版只做文本消息
++- 群聊场景按 `@机器人` 触发路径实现
++
++详细中文步骤与排障见 [QQ 接入实操与排障指南](QQ_SETUP.zh-CN.md)。
++
++---
++
+ ## 飞书（Lark）
+ 
+ BioClaw 当前已支持**飞书文本消息收发**。优先建议使用 **WebSocket / 长连接**；只有在部署环境必须走公网回调时，再切到 webhook。
+@@ -189,21 +220,3 @@ BioClaw 使用 **[Socket Mode](https://api.slack.com/apis/socket-mode)** 长连
+ - 只关 WhatsApp：`DISABLE_WHATSAPP=1` 或 `ENABLE_WHATSAPP=false`。
+ - 不用的通道：对应 token 留空或不配置即可（飞书、企业微信、Discord、Slack 都是如此；Slack 需同时配置 `SLACK_BOT_TOKEN` 与 `SLACK_APP_TOKEN`）。
+ 
+----
+-
+-## QQ 说明（路线图）
+-
+-以下截图用于展示**QQ 通道**这一产品扩展方向；当前仓库内**仍没有**可直接启用的 QQ 通道实现，请勿按 QQ 文档期待开箱即用。
+-
+-### QQ + DeepSeek（示意）
+-
+-<div align="center">
+-<img src="images/qq/qq-deepseek-1.jpg" width="420" alt="QQ DeepSeek demo 1">
+-</div>
+-
+-<div align="center">
+-<img src="images/qq/qq-deepseek-2.jpg" width="420" alt="QQ DeepSeek demo 2">
+-</div>
+-
+-
+-任务类演示仍见 [ExampleTask/ExampleTask.md](../ExampleTask/ExampleTask.md)。
+diff --git a/docs/QQ_SETUP.zh-CN.md b/docs/QQ_SETUP.zh-CN.md
+new file mode 100644
+index 0000000..4daaecf
+--- /dev/null
++++ b/docs/QQ_SETUP.zh-CN.md
+@@ -0,0 +1,171 @@
++# QQ 接入实操与排障指南
++
++本文档对应当前 BioClaw 中已经落地的 **QQ 官方 Bot 文本版**。
++
++当前支持范围：
++- QQ 官方 Bot
++- WebSocket 长连接接收事件
++- 私聊消息：`C2C_MESSAGE_CREATE`
++- 群里 `@机器人` 消息：`GROUP_AT_MESSAGE_CREATE`
++- 文本回复
++
++当前不支持：
++- 个人 QQ 自动化
++- 图片 / 文件发送
++- webhook 模式
++- 频道场景的完整适配
++
++## 1. 前提
++
++1. 你使用的是 **QQ 开放平台 / 官方 Bot**，不是个人 QQ 号自动化。
++2. 服务器可以访问：
++   - `https://bots.qq.com`
++   - `https://api.sgroup.qq.com`
++3. BioClaw 已能正常启动，模型提供商配置正确。
++
++## 2. 在 QQ 开放平台里做什么
++
++1. 创建机器人应用。
++2. 记录：
++   - `App ID`
++   - `Client Secret`
++3. 在机器人配置里启用 **WebSocket** 接收事件。
++4. 订阅这两个事件：
++   - 私聊消息
++   - 群聊 `@机器人` 消息
++5. 如果平台区分沙盒与正式环境，先确认你当前使用的是哪一个。
++
++说明：当前 BioClaw 的 QQ 通道监听的是官方文档中的 group/C2C 组合 intent（`1 << 25`），对应私聊和群里 `@机器人` 两类消息事件。
++
++## 3. 写入服务器 `.env`
++
++在服务器执行：
++
++```bash
++cd /home/ubuntu/cqr_files/Bioclaw_new/BioClaw
++
++[ -f .env ] || cp .env.example .env
++cp .env ".env.bak.$(date +%F-%H%M%S)"
++
++upsert_env() {
++  key="$1"
++  value="$2"
++  if grep -q "^${key}=" .env; then
++    sed -i "s|^${key}=.*|${key}=${value}|" .env
++  else
++    printf '%s=%s\n' "$key" "$value" >> .env
++  fi
++}
++
++read -rp 'QQ App ID: ' QQ_APP_ID_INPUT
++read -rsp 'QQ Client Secret: ' QQ_CLIENT_SECRET_INPUT
++echo
++
++upsert_env QQ_APP_ID "$QQ_APP_ID_INPUT"
++upsert_env QQ_CLIENT_SECRET "$QQ_CLIENT_SECRET_INPUT"
++# 如使用沙盒环境，再打开这一行
++# upsert_env QQ_SANDBOX true
++
++unset QQ_APP_ID_INPUT QQ_CLIENT_SECRET_INPUT
++
++grep -E '^(QQ_APP_ID|QQ_SANDBOX)=' .env || true
++grep '^QQ_CLIENT_SECRET=' .env | sed 's/=.*/=***hidden***/'
++```
++
++## 4. 启动
++
++```bash
++cd /home/ubuntu/cqr_files/Bioclaw_new/BioClaw
++source /home/ubuntu/.nvm/nvm.sh
++nvm use 22
++npm run build
++npm start
++```
++
++如果 QQ 长连接成功，终端里应出现：
++
++```text
++Connected to QQ (websocket)
++```
++
++## 5. 如何测试
++
++### 5.1 私聊测试
++
++直接给机器人发：
++
++```text
++你好
++```
++
++期望日志：
++
++```text
++QQ direct message received
++QQ message sent
++```
++
++### 5.2 群聊测试
++
++把机器人加入群后，在群里发送：
++
++```text
++@机器人 你好
++```
++
++期望日志：
++
++```text
++QQ group message received
++QQ message sent
++```
++
++## 6. 常见问题
++
++### 6.1 没有任何 QQ 日志
++
++重点检查：
++- 机器人应用是否真的启用了 WebSocket
++- 私聊 / 群里 `@机器人` 事件是否已订阅
++- 服务器是否能访问 `bots.qq.com` 与 `api.sgroup.qq.com`
++- `.env` 中 `QQ_APP_ID` / `QQ_CLIENT_SECRET` 是否对应同一个应用
++
++### 6.2 提示模型 API key 无效
++
++这不是 QQ 问题，而是模型提供商配置问题。优先检查：
++- `MODEL_PROVIDER`
++- `OPENROUTER_API_KEY`
++- 或 `ANTHROPIC_API_KEY`
++
++### 6.3 群里发普通消息机器人不回
++
++当前实现按官方 `GROUP_AT_MESSAGE_CREATE` 路径工作。第一版默认只保证：
++- 私聊消息
++- 群里 `@机器人` 的消息
++
++所以群里测试时请先显式 `@机器人`。
++
++### 6.4 这是个人 QQ 机器人吗
++
++不是。当前实现只支持 **官方 QQ Bot**。
++
++## 7. 当前实现边界
++
++当前版本为了稳妥，只做了最小可用集：
++- 自动注册 QQ 会话
++- 文本收发
++- 私聊与群 `@机器人`
++
++后续如果需要，再扩展：
++- 图片 / 文件
++- webhook 模式
++- 更完整的富消息
++- 更细的群资料同步
++
++## 8. 参考
++
++- QQ 机器人官方文档：<https://bot.q.qq.com/wiki/develop/api-v2/>
++- WebSocket 接入说明：<https://bot.q.qq.com/wiki/develop/api-v2/dev-prepare/interface-framework/reference.html>
++- 事件订阅与通知：<https://bot.q.qq.com/wiki/develop/api-v2/dev-prepare/interface-framework/event-emit.html>
++- 消息事件：<https://bot.q.qq.com/wiki/develop/api-v2/server-inter/message/send-receive/event.html>
++- 发送消息：<https://bot.q.qq.com/wiki/develop/api-v2/server-inter/message/send-receive/send.html>
+diff --git a/package-lock.json b/package-lock.json
+index 684117d..dbeef6c 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -22,6 +22,7 @@
+         "pino-pretty": "^13.0.0",
+         "qrcode-terminal": "^0.12.0",
+         "weixin-agent-sdk": "^0.1.0",
++        "ws": "^8.19.0",
+         "zod": "^4.3.6"
+       },
+       "devDependencies": {
+diff --git a/package.json b/package.json
+index 0d10164..b9a14bd 100644
+--- a/package.json
++++ b/package.json
+@@ -33,6 +33,7 @@
+     "pino": "^9.6.0",
+     "pino-pretty": "^13.0.0",
+     "qrcode-terminal": "^0.12.0",
++    "ws": "^8.19.0",
+     "weixin-agent-sdk": "^0.1.0",
+     "zod": "^4.3.6"
+   },
+diff --git a/src/channels/qq.ts b/src/channels/qq.ts
+new file mode 100644
+index 0000000..b174f03
+--- /dev/null
++++ b/src/channels/qq.ts
+@@ -0,0 +1,503 @@
++import WebSocket, { RawData } from 'ws';
++
++import { logger } from '../logger.js';
++import { Channel, NewMessage, OnChatMetadata, OnInboundMessage, RegisteredGroup } from '../types.js';
++
++const QQ_JID_SUFFIX_GROUP = '@qq.group';
++const QQ_JID_SUFFIX_USER = '@qq.user';
++const QQ_ACCESS_TOKEN_URL = 'https://bots.qq.com/app/getAppAccessToken';
++const QQ_API_BASE = 'https://api.sgroup.qq.com';
++const QQ_SANDBOX_API_BASE = 'https://sandbox.api.sgroup.qq.com';
++const QQ_GROUP_AND_C2C_INTENT = 1 << 25;
++const ACCESS_TOKEN_SKEW_MS = 60_000;
++const RECONNECT_DELAY_MS = 5_000;
++const SEEN_EVENT_TTL_MS = 10 * 60 * 1000;
++
++type QQDispatchType = 'READY' | 'C2C_MESSAGE_CREATE' | 'GROUP_AT_MESSAGE_CREATE';
++
++interface QQAccessTokenResponse {
++  access_token?: string;
++  expires_in?: number | string;
++}
++
++interface QQGatewayBotResponse {
++  url: string;
++  shards?: number;
++}
++
++interface QQAttachment {
++  content_type?: string;
++  filename?: string;
++}
++
++interface QQC2CEvent {
++  id: string;
++  content?: string;
++  timestamp?: string;
++  author?: {
++    user_openid?: string;
++  };
++  attachments?: QQAttachment[];
++}
++
++interface QQGroupAtEvent {
++  id: string;
++  content?: string;
++  timestamp?: string;
++  group_openid?: string;
++  author?: {
++    member_openid?: string;
++  };
++  attachments?: QQAttachment[];
++}
++
++interface QQReadyEvent {
++  session_id?: string;
++}
++
++interface QQGatewayPayload<T = unknown> {
++  id?: string;
++  op: number;
++  d?: T;
++  s?: number;
++  t?: QQDispatchType;
++}
++
++export interface QQChannelOpts {
++  appId: string;
++  clientSecret: string;
++  sandbox?: boolean;
++  onMessage: OnInboundMessage;
++  onChatMetadata: OnChatMetadata;
++  registeredGroups: () => Record<string, RegisteredGroup>;
++  autoRegister?: (jid: string, name: string, channelName: string) => void;
++}
++
++export function buildQqChatJid(openId: string, kind: 'group' | 'user'): string {
++  return `${openId}${kind === 'group' ? QQ_JID_SUFFIX_GROUP : QQ_JID_SUFFIX_USER}`;
++}
++
++export function parseQqMessageContent(content?: string, attachments?: QQAttachment[]): string | null {
++  const text = content?.trim();
++  if (text) return text;
++
++  const firstAttachment = attachments?.[0];
++  if (!firstAttachment) return null;
++
++  const contentType = firstAttachment.content_type || '';
++  if (contentType.startsWith('image/')) return '[image]';
++  if (contentType.startsWith('video/')) return '[video]';
++  if (contentType === 'voice') return '[voice]';
++  if (contentType === 'file') return firstAttachment.filename ? `[file: ${firstAttachment.filename}]` : '[file]';
++  return '[attachment]';
++}
++
++function apiBase(sandbox: boolean | undefined): string {
++  return sandbox ? QQ_SANDBOX_API_BASE : QQ_API_BASE;
++}
++
++function toIsoTimestamp(value?: string): string {
++  if (!value) return new Date().toISOString();
++  const parsed = new Date(value);
++  if (Number.isNaN(parsed.getTime())) return new Date().toISOString();
++  return parsed.toISOString();
++}
++
++function buildDirectChatName(userOpenId: string): string {
++  return `QQ DM ${userOpenId}`;
++}
++
++function buildGroupChatName(groupOpenId: string): string {
++  return `QQ Group ${groupOpenId.slice(-8)}`;
++}
++
++function textPreview(text: string): string {
++  return text.replace(/\s+/g, ' ').trim().slice(0, 80);
++}
++
++export class QQChannel implements Channel {
++  name = 'qq';
++  prefixAssistantName = false;
++
++  private readonly opts: QQChannelOpts;
++  private ws?: WebSocket;
++  private connected = false;
++  private shuttingDown = false;
++  private heartbeatTimer?: NodeJS.Timeout;
++  private reconnectTimer?: NodeJS.Timeout;
++  private connectPromise?: Promise<void>;
++  private lastSequence: number | null = null;
++  private sessionId?: string;
++  private accessToken?: string;
++  private accessTokenExpiresAt = 0;
++  private readonly seenEventIds = new Map<string, number>();
++  private readonly seenEventGcTimer: NodeJS.Timeout;
++
++  constructor(opts: QQChannelOpts) {
++    this.opts = opts;
++    this.seenEventGcTimer = setInterval(() => this.pruneSeenEvents(), 60_000);
++  }
++
++  async connect(): Promise<void> {
++    if (this.connected) return;
++    if (this.connectPromise) return this.connectPromise;
++
++    this.shuttingDown = false;
++    this.connectPromise = this.connectOnce().finally(() => {
++      this.connectPromise = undefined;
++    });
++    return this.connectPromise;
++  }
++
++  isConnected(): boolean {
++    return this.connected;
++  }
++
++  ownsJid(jid: string): boolean {
++    return jid.endsWith(QQ_JID_SUFFIX_GROUP) || jid.endsWith(QQ_JID_SUFFIX_USER);
++  }
++
++  async disconnect(): Promise<void> {
++    this.shuttingDown = true;
++    this.connected = false;
++    clearInterval(this.seenEventGcTimer);
++    if (this.heartbeatTimer) clearInterval(this.heartbeatTimer);
++    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
++    this.heartbeatTimer = undefined;
++    this.reconnectTimer = undefined;
++    this.lastSequence = null;
++    this.sessionId = undefined;
++
++    if (!this.ws) return;
++    const ws = this.ws;
++    this.ws = undefined;
++    await new Promise<void>((resolve) => {
++      ws.once('close', () => resolve());
++      ws.close();
++      setTimeout(() => resolve(), 2_000);
++    });
++  }
++
++  async sendMessage(jid: string, text: string): Promise<void> {
++    const payload = { content: text, msg_type: 0 };
++
++    if (jid.endsWith(QQ_JID_SUFFIX_USER)) {
++      const openId = jid.slice(0, -QQ_JID_SUFFIX_USER.length);
++      await this.apiRequest(`/v2/users/${openId}/messages`, {
++        method: 'POST',
++        body: JSON.stringify(payload),
++      });
++      logger.info({ jid, length: text.length }, 'QQ message sent');
++      return;
++    }
++
++    if (jid.endsWith(QQ_JID_SUFFIX_GROUP)) {
++      const groupOpenId = jid.slice(0, -QQ_JID_SUFFIX_GROUP.length);
++      await this.apiRequest(`/v2/groups/${groupOpenId}/messages`, {
++        method: 'POST',
++        body: JSON.stringify(payload),
++      });
++      logger.info({ jid, length: text.length }, 'QQ message sent');
++      return;
++    }
++
++    logger.warn({ jid }, 'Invalid QQ JID, message not sent');
++  }
++
++  private async connectOnce(): Promise<void> {
++    const gateway = await this.getGateway();
++    logger.info({ url: gateway.url, sandbox: !!this.opts.sandbox }, 'Connecting to QQ gateway');
++
++    await new Promise<void>((resolve, reject) => {
++      let settled = false;
++      const ws = new WebSocket(gateway.url);
++      this.ws = ws;
++      this.lastSequence = null;
++      this.sessionId = undefined;
++
++      const settleResolve = () => {
++        if (settled) return;
++        settled = true;
++        resolve();
++      };
++
++      const settleReject = (error: Error) => {
++        if (settled) return;
++        settled = true;
++        reject(error);
++      };
++
++      ws.on('message', (data) => {
++        void this.handleSocketMessage(data, settleResolve, settleReject);
++      });
++
++      ws.once('error', (err) => {
++        logger.error({ err }, 'QQ WebSocket error');
++        this.connected = false;
++        if (!settled) {
++          settleReject(err instanceof Error ? err : new Error(String(err)));
++          return;
++        }
++        if (!this.shuttingDown) this.scheduleReconnect('error');
++      });
++
++      ws.once('close', (code, reason) => {
++        this.connected = false;
++        if (this.heartbeatTimer) clearInterval(this.heartbeatTimer);
++        this.heartbeatTimer = undefined;
++        this.ws = undefined;
++
++        const reasonText = reason.toString() || 'no reason';
++        if (!settled) {
++          settleReject(new Error(`QQ WebSocket closed before ready (code=${code}, reason=${reasonText})`));
++          return;
++        }
++        if (!this.shuttingDown) this.scheduleReconnect(`close code=${code} reason=${reasonText}`);
++      });
++    });
++  }
++
++  private async handleSocketMessage(
++    raw: RawData,
++    onReady: () => void,
++    onFatal: (error: Error) => void,
++  ): Promise<void> {
++    let payload: QQGatewayPayload;
++    try {
++      payload = JSON.parse(raw.toString()) as QQGatewayPayload;
++    } catch (err) {
++      logger.warn({ err }, 'Failed to parse QQ gateway payload');
++      return;
++    }
++
++    if (typeof payload.s === 'number') this.lastSequence = payload.s;
++
++    switch (payload.op) {
++      case 10: {
++        const heartbeatInterval = Number((payload.d as { heartbeat_interval?: number } | undefined)?.heartbeat_interval || 45_000);
++        this.startHeartbeat(heartbeatInterval);
++        try {
++          await this.sendIdentify();
++        } catch (err) {
++          onFatal(err instanceof Error ? err : new Error(String(err)));
++        }
++        return;
++      }
++      case 11:
++        return;
++      case 7:
++        logger.warn('QQ gateway requested reconnect');
++        this.ws?.close();
++        return;
++      case 9:
++        logger.warn('QQ gateway reported invalid session');
++        this.ws?.close();
++        return;
++      case 0:
++        break;
++      default:
++        return;
++    }
++
++    if (payload.t === 'READY') {
++      this.sessionId = (payload.d as QQReadyEvent | undefined)?.session_id;
++      this.connected = true;
++      logger.info('Connected to QQ (websocket)');
++      onReady();
++      return;
++    }
++
++    if (payload.t === 'C2C_MESSAGE_CREATE') {
++      await this.handleDirectMessage(payload.d as QQC2CEvent);
++      return;
++    }
++
++    if (payload.t === 'GROUP_AT_MESSAGE_CREATE') {
++      await this.handleGroupAtMessage(payload.d as QQGroupAtEvent);
++    }
++  }
++
++  private startHeartbeat(intervalMs: number): void {
++    if (this.heartbeatTimer) clearInterval(this.heartbeatTimer);
++    this.heartbeatTimer = setInterval(() => {
++      if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
++      this.ws.send(JSON.stringify({ op: 1, d: this.lastSequence }));
++    }, intervalMs);
++  }
++
++  private async sendIdentify(): Promise<void> {
++    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
++      throw new Error('QQ gateway socket is not open');
++    }
++    const accessToken = await this.getAccessToken();
++    this.ws.send(JSON.stringify({
++      op: 2,
++      d: {
++        token: `QQBot ${accessToken}`,
++        intents: QQ_GROUP_AND_C2C_INTENT,
++        shard: [0, 1],
++        properties: {
++          $os: 'linux',
++          $browser: 'bioclaw',
++          $device: 'bioclaw',
++        },
++      },
++    }));
++  }
++
++  private async handleDirectMessage(event: QQC2CEvent): Promise<void> {
++    if (!event.id || this.isDuplicateEvent(event.id)) return;
++
++    const sender = event.author?.user_openid;
++    if (!sender) return;
++
++    const content = parseQqMessageContent(event.content, event.attachments);
++    if (!content) return;
++
++    const chatJid = buildQqChatJid(sender, 'user');
++    const timestamp = toIsoTimestamp(event.timestamp);
++    const chatName = buildDirectChatName(sender);
++
++    this.opts.onChatMetadata(chatJid, timestamp, chatName);
++    this.ensureRegistered(chatJid, chatName);
++    if (!this.opts.registeredGroups()[chatJid]) {
++      logger.info({ chatJid }, 'QQ direct message from unregistered conversation, ignored');
++      return;
++    }
++
++    const message: NewMessage = {
++      id: event.id,
++      chat_jid: chatJid,
++      sender,
++      sender_name: sender,
++      content,
++      timestamp,
++      is_from_me: false,
++    };
++    this.opts.onMessage(chatJid, message);
++    logger.info({ chatJid, sender, preview: textPreview(content) }, 'QQ direct message received');
++  }
++
++  private async handleGroupAtMessage(event: QQGroupAtEvent): Promise<void> {
++    if (!event.id || this.isDuplicateEvent(event.id)) return;
++
++    const groupOpenId = event.group_openid;
++    const sender = event.author?.member_openid;
++    if (!groupOpenId || !sender) return;
++
++    const content = parseQqMessageContent(event.content, event.attachments);
++    if (!content) return;
++
++    const chatJid = buildQqChatJid(groupOpenId, 'group');
++    const timestamp = toIsoTimestamp(event.timestamp);
++    const chatName = buildGroupChatName(groupOpenId);
++
++    this.opts.onChatMetadata(chatJid, timestamp, chatName);
++    this.ensureRegistered(chatJid, chatName);
++    if (!this.opts.registeredGroups()[chatJid]) {
++      logger.info({ chatJid }, 'QQ group message from unregistered conversation, ignored');
++      return;
++    }
++
++    const message: NewMessage = {
++      id: event.id,
++      chat_jid: chatJid,
++      sender,
++      sender_name: sender,
++      content,
++      timestamp,
++      is_from_me: false,
++    };
++    this.opts.onMessage(chatJid, message);
++    logger.info({ chatJid, sender, preview: textPreview(content) }, 'QQ group message received');
++  }
++
++  private ensureRegistered(chatJid: string, chatName: string): void {
++    const groups = this.opts.registeredGroups();
++    if (groups[chatJid] || !this.opts.autoRegister) return;
++    this.opts.autoRegister(chatJid, chatName, 'qq');
++  }
++
++  private async getGateway(): Promise<QQGatewayBotResponse> {
++    return this.apiRequest<QQGatewayBotResponse>('/gateway/bot', { method: 'GET' });
++  }
++
++  private async getAccessToken(forceRefresh = false): Promise<string> {
++    if (!forceRefresh && this.accessToken && Date.now() < this.accessTokenExpiresAt) {
++      return this.accessToken;
++    }
++
++    const response = await fetch(QQ_ACCESS_TOKEN_URL, {
++      method: 'POST',
++      headers: { 'Content-Type': 'application/json' },
++      body: JSON.stringify({ appId: this.opts.appId, clientSecret: this.opts.clientSecret }),
++    });
++
++    if (!response.ok) {
++      const body = await response.text();
++      throw new Error(`Failed to get QQ access token (${response.status}): ${body.slice(0, 200)}`);
++    }
++
++    const data = await response.json() as QQAccessTokenResponse;
++    if (!data.access_token) {
++      throw new Error('QQ access token response did not include access_token');
++    }
++
++    const expiresInSeconds = Number(data.expires_in || 7200);
++    this.accessToken = data.access_token;
++    this.accessTokenExpiresAt = Date.now() + Math.max(1_000, expiresInSeconds * 1000 - ACCESS_TOKEN_SKEW_MS);
++    return this.accessToken;
++  }
++
++  private async apiRequest<T>(path: string, init: RequestInit, retry = true): Promise<T> {
++    const token = await this.getAccessToken();
++    const headers = new Headers(init.headers);
++    headers.set('Authorization', `QQBot ${token}`);
++    headers.set('Accept', 'application/json');
++    if (init.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
++
++    const response = await fetch(`${apiBase(this.opts.sandbox)}${path}`, {
++      ...init,
++      headers,
++    });
++
++    if (response.status === 401 && retry) {
++      await this.getAccessToken(true);
++      return this.apiRequest<T>(path, init, false);
++    }
++
++    if (!response.ok) {
++      const body = await response.text();
++      throw new Error(`QQ API ${init.method || 'GET'} ${path} failed (${response.status}): ${body.slice(0, 200)}`);
++    }
++
++    if (response.status === 204) return undefined as T;
++    return await response.json() as T;
++  }
++
++  private scheduleReconnect(reason: string): void {
++    if (this.shuttingDown || this.reconnectTimer) return;
++    logger.warn({ reason }, 'Scheduling QQ reconnect');
++    this.reconnectTimer = setTimeout(() => {
++      this.reconnectTimer = undefined;
++      void this.connect().catch((err) => {
++        logger.error({ err }, 'QQ reconnect failed');
++        this.scheduleReconnect('retry-after-failure');
++      });
++    }, RECONNECT_DELAY_MS);
++  }
++
++  private isDuplicateEvent(eventId: string): boolean {
++    const now = Date.now();
++    const seenAt = this.seenEventIds.get(eventId);
++    this.seenEventIds.set(eventId, now);
++    return seenAt !== undefined && now - seenAt < SEEN_EVENT_TTL_MS;
++  }
++
++  private pruneSeenEvents(): void {
++    const cutoff = Date.now() - SEEN_EVENT_TTL_MS;
++    for (const [eventId, seenAt] of this.seenEventIds.entries()) {
++      if (seenAt < cutoff) this.seenEventIds.delete(eventId);
++    }
++  }
++}
+diff --git a/src/config.ts b/src/config.ts
+index 6517a07..ab9da7f 100644
+--- a/src/config.ts
++++ b/src/config.ts
+@@ -20,6 +20,9 @@ export const LOCAL_WEB_GROUP_NAME =
+ export const LOCAL_WEB_GROUP_FOLDER =
+   process.env.LOCAL_WEB_GROUP_FOLDER || 'local-web';
+ export const LOCAL_WEB_SECRET = process.env.LOCAL_WEB_SECRET || '';
++export const QQ_APP_ID = process.env.QQ_APP_ID || '';
++export const QQ_CLIENT_SECRET = process.env.QQ_CLIENT_SECRET || '';
++export const QQ_SANDBOX = process.env.QQ_SANDBOX === 'true';
+ export const FEISHU_APP_ID = process.env.FEISHU_APP_ID || '';
+ export const FEISHU_APP_SECRET = process.env.FEISHU_APP_SECRET || '';
+ export const FEISHU_CONNECTION_MODE =
+diff --git a/src/index.ts b/src/index.ts
+index 9a1f269..233767c 100644
+--- a/src/index.ts
++++ b/src/index.ts
+@@ -18,6 +18,9 @@ import {
+   FEISHU_PATH,
+   FEISHU_PORT,
+   FEISHU_VERIFICATION_TOKEN,
++  QQ_APP_ID,
++  QQ_CLIENT_SECRET,
++  QQ_SANDBOX,
+   IDLE_TIMEOUT,
+   LOCAL_WEB_GROUP_FOLDER,
+   LOCAL_WEB_GROUP_JID,
+@@ -53,6 +56,7 @@ import {
+ } from './session-manager.js';
+ import { startSchedulerLoop } from './task-scheduler.js';
+ import { LocalWebChannel } from './channels/local-web/channel.js';
++import { QQChannel } from './channels/qq.js';
+ import { FeishuChannel } from './channels/feishu.js';
+ import { WhatsAppChannel } from './channels/whatsapp/channel.js';
+ import { WeComChannel } from './channels/wecom.js';
+@@ -263,6 +267,17 @@ async function main(): Promise<void> {
+     await localWeb.connect();
+   }
+ 
++  if (QQ_APP_ID && QQ_CLIENT_SECRET) {
++    const qq = new QQChannel({
++      appId: QQ_APP_ID,
++      clientSecret: QQ_CLIENT_SECRET,
++      sandbox: QQ_SANDBOX,
++      ...channelCallbacks,
++    });
++    channels.push(qq);
++    try { await qq.connect(); } catch (err) { logger.error({ err }, 'QQ connection failed'); }
++  }
++
+   if (FEISHU_APP_ID && FEISHU_APP_SECRET) {
+     const feishu = new FeishuChannel({
+       appId: FEISHU_APP_ID,

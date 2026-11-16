@@ -1,0 +1,62 @@
+version = "1.0"
+
+[task]
+name = "default/Runchuan-BU__BioClaw-17"
+description = "fix: surface unstructured container stdout in logs"
+
+[metadata]
+difficulty = "easy"
+category = "bugfix"
+keywords = [
+    "BioClaw",
+    "pr_diff",
+]
+
+[metadata.repo2env]
+pipeline = "pr_diff"
+pipeline_version = "0.3.0"
+repo = "Runchuan-BU/BioClaw"
+ref = "2ace84856c735bb24b3560294d4f658688d85770"
+reference = "https://github.com/Runchuan-BU/BioClaw/pull/17"
+source_access = "auto"
+built_at = "2026-11-16T08:31:08.693031+00:00"
+reward_kinds = [
+    "diff_similarity",
+]
+spec_version = "0.2.0"
+content_hash = "sha256:e0b8570fff72d86ea96886e169af11aaebcb73f8a405c9f33d9203ab9a977205"
+
+[metadata.repo2env.pr_diff]
+pr_merged_at = "2026-03-19T02:39:37Z"
+diff_format = "unified"
+context_files = [
+    "container/agent-runner/src/index.ts",
+]
+
+[metadata.repo2env.reward_calibration]
+baseline_reward = 0.0
+loc_changed = 5
+difficulty = "trivial"
+
+[metadata.repo2env.evaluation]
+schema_version = "1"
+status = "unverified"
+stage = "generation"
+reason_codes = [
+    "validation_not_run",
+]
+detail = "Generated task; validation has not been established."
+provenance = "unknown"
+evidence = []
+
+[metadata.repo2env.reproducibility]
+mode = "local_only"
+image_ref = "python:3.12-slim"
+image_tag = "python:3.12-slim"
+image_visibility = "private"
+
+[agent]
+timeout_sec = 1800.0
+
+[verifier]
+timeout_sec = 300.0

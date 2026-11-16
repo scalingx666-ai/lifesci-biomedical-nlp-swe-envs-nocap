@@ -1,0 +1,76 @@
+version = "1.0"
+
+[task]
+name = "default/Runchuan-BU__BioClaw-15"
+description = "Add Windows-friendly local web chat and upload flow"
+
+[metadata]
+difficulty = "large"
+category = "bugfix"
+keywords = [
+    "BioClaw",
+    "pr_diff",
+]
+
+[metadata.repo2env]
+pipeline = "pr_diff"
+pipeline_version = "0.3.0"
+repo = "Runchuan-BU/BioClaw"
+ref = "006db5a1988b7dead8a48c87eb47862c15b04abd"
+reference = "https://github.com/Runchuan-BU/BioClaw/pull/15"
+source_access = "auto"
+built_at = "2026-11-16T08:31:09.969990+00:00"
+reward_kinds = [
+    "diff_similarity",
+]
+spec_version = "0.2.0"
+content_hash = "sha256:99c7a587bb4539c4b69d784de5c13c8fdc22ec281b6d515a48d5c64c09927d06"
+
+[metadata.repo2env.pr_diff]
+pr_merged_at = "2026-03-14T14:29:55Z"
+diff_format = "unified"
+context_files = [
+    "README.zh-CN.md",
+    "config-examples/.env.local-web.example",
+    "docs/WINDOWS.zh-CN.md",
+    "src/channels/local-web.ts",
+    "src/channels/whatsapp.test.ts",
+    "src/channels/whatsapp.ts",
+    "src/cli.ts",
+    "src/config.ts",
+    "src/container-runner.ts",
+    "src/db.ts",
+    "src/env.ts",
+    "src/formatting.test.ts",
+    "src/index.ts",
+    "src/platform.ts",
+    "src/whatsapp-auth.ts",
+]
+
+[metadata.repo2env.reward_calibration]
+baseline_reward = 0.0
+loc_changed = 1146
+difficulty = "large"
+
+[metadata.repo2env.evaluation]
+schema_version = "1"
+status = "unverified"
+stage = "generation"
+reason_codes = [
+    "validation_not_run",
+]
+detail = "Generated task; validation has not been established."
+provenance = "unknown"
+evidence = []
+
+[metadata.repo2env.reproducibility]
+mode = "local_only"
+image_ref = "python:3.12-slim"
+image_tag = "python:3.12-slim"
+image_visibility = "private"
+
+[agent]
+timeout_sec = 1800.0
+
+[verifier]
+timeout_sec = 300.0

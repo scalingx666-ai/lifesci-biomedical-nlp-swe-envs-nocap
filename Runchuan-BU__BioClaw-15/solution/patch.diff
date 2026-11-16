@@ -1,0 +1,1551 @@
+diff --git a/README.zh-CN.md b/README.zh-CN.md
+index ae894ce..d24f464 100644
+--- a/README.zh-CN.md
++++ b/README.zh-CN.md
+@@ -41,6 +41,10 @@ BioClaw 将常见的生物信息学任务带到聊天界面中。研究者可以
+ 
+ ## 快速开始
+ 
++> 说明：当前仓库中已经实现的消息通道是 WhatsApp。文档中的 QQ / 飞书截图展示的是扩展方向，不代表仓库里已经内置了可直接运行的 QQ / 飞书通道。
++
++> 现在也支持一个更适合 Windows 用户的本地网页聊天入口。若你在中国、或者暂时不想接 WhatsApp，可直接走 `HTTP webhook + 本地网页聊天`。
++
+ ### 环境要求
+ 
+ - macOS 或 Linux
+@@ -110,6 +114,10 @@ npm run dev
+ @Bioclaw <你的请求>
+ ```
+ 
++如果你在 Windows 上、或者暂时不想通过 WhatsApp 使用，请先看 [docs/WINDOWS.zh-CN.md](docs/WINDOWS.zh-CN.md)。当前最稳妥的方式是 `WSL2 + Docker Desktop + npm run cli`。
++
++如果你想直接在浏览器里聊天，请在 `.env` 中设置 `ENABLE_WHATSAPP=false` 和 `ENABLE_LOCAL_WEB=true`，再执行 `npm run dev`，最后打开 [http://127.0.0.1:3210](http://127.0.0.1:3210)。
++
+ ## 频道配置
+ 
+ BioClaw 支持多个聊天平台，通过 `.env` 环境变量启用。
+@@ -187,6 +195,8 @@ install https://github.com/Runchuan-BU/BioClaw
+ 
+ 更多任务示例见 [ExampleTask/ExampleTask.md](ExampleTask/ExampleTask.md)。
+ 
++> 注意：上面的 QQ / 飞书图片目前是产品展示示例，不是仓库内现成可启用的接入实现。
++
+ ## 系统架构
+ 
+ BioClaw 基于 NanoClaw 的容器化架构，并融合 STELLA 的生物医学能力：
+diff --git a/config-examples/.env.local-web.example b/config-examples/.env.local-web.example
+new file mode 100644
+index 0000000..4301e88
+--- /dev/null
++++ b/config-examples/.env.local-web.example
+@@ -0,0 +1,22 @@
++# Local web chat only. Suitable for Windows + China-friendly setup.
++
++# Disable WhatsApp if you only want the browser chat.
++ENABLE_WHATSAPP=false
++ENABLE_LOCAL_WEB=true
++LOCAL_WEB_HOST=127.0.0.1
++LOCAL_WEB_PORT=3210
++
++# Optional: protect POST /webhook with a shared secret header.
++# LOCAL_WEB_SECRET=change-me
++
++# Recommended in China: use an OpenAI-compatible provider.
++MODEL_PROVIDER=openai-compatible
++OPENAI_COMPATIBLE_API_KEY=your_api_key
++OPENAI_COMPATIBLE_BASE_URL=https://your-provider.example/v1
++OPENAI_COMPATIBLE_MODEL=your-model-name
++
++# Alternative: OpenRouter
++# MODEL_PROVIDER=openrouter
++# OPENROUTER_API_KEY=your_openrouter_key
++# OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
++# OPENROUTER_MODEL=openai/gpt-5.4
+diff --git a/docs/WINDOWS.zh-CN.md b/docs/WINDOWS.zh-CN.md
+new file mode 100644
+index 0000000..1d17a72
+--- /dev/null
++++ b/docs/WINDOWS.zh-CN.md
+@@ -0,0 +1,159 @@
++# Windows 使用说明（最小可用方案）
++
++这份说明面向需要在 Windows 上尽快跑通 BioClaw 的用户，尤其是暂时不走 WhatsApp、而是先本地验证模型和生物工具链的场景。
++
++## 当前现状
++
++- 仓库中的现成消息通道只有 WhatsApp。
++- `README.zh-CN.md` 里提到的 QQ / 飞书（Lark）目前是展示和扩展方向，不是已提交的可直接运行实现。
++- 对 Windows，当前推荐方案是：
++  - Windows 11
++  - WSL2
++  - Docker Desktop（开启 WSL2 backend）
++  - 使用 CLI 模式先本地跑通
++
++## 推荐操作路径
++
++如果你的用户在中国，而且不方便使用 WhatsApp，最现实的顺序是：
++
++1. 先在 Windows 上用 CLI 模式验证 BioClaw 可运行。
++2. 确认模型提供方可用。
++3. 后续再决定是否接 QQ / 飞书 webhook 频道。
++
++## 安装步骤
++
++### 1. 安装基础环境
++
++- 安装 Node.js 20+
++- 安装 Docker Desktop
++- 在 Docker Desktop 设置中启用 WSL2 backend
++
++### 2. 克隆并安装依赖
++
++```bash
++git clone https://github.com/Runchuan-BU/BioClaw.git
++cd BioClaw
++npm install
++```
++
++### 3. 配置 `.env`
++
++在项目根目录创建 `.env`。最省事的方式是先复制示例：
++
++```bash
++cp config-examples/.env.local-web.example .env
++```
++
++如果你在 Windows PowerShell 里操作，也可以直接新建 `.env` 文件，然后把下面内容粘进去。
++
++如果你在中国，通常更适合先用兼容 OpenAI 的提供方：
++
++```bash
++ENABLE_WHATSAPP=false
++ENABLE_LOCAL_WEB=true
++LOCAL_WEB_HOST=127.0.0.1
++LOCAL_WEB_PORT=3210
++
++MODEL_PROVIDER=openai-compatible
++OPENAI_COMPATIBLE_API_KEY=your_api_key
++OPENAI_COMPATIBLE_BASE_URL=https://your-provider.example/v1
++OPENAI_COMPATIBLE_MODEL=your-model-name
++```
++
++这几行分别是什么意思：
++
++- `ENABLE_WHATSAPP=false`
++  - 关闭 WhatsApp 通道，避免启动时要求 WhatsApp 认证。
++- `ENABLE_LOCAL_WEB=true`
++  - 打开本地网页聊天入口。
++- `LOCAL_WEB_HOST=127.0.0.1`
++  - 只允许本机访问，更安全。
++- `LOCAL_WEB_PORT=3210`
++  - 本地网页聊天端口，浏览器稍后会访问 `http://127.0.0.1:3210`。
++- `MODEL_PROVIDER=openai-compatible`
++  - 选择兼容 OpenAI 的模型接口。
++- `OPENAI_COMPATIBLE_API_KEY`
++  - 你从模型服务商那里拿到的密钥。
++- `OPENAI_COMPATIBLE_BASE_URL`
++  - 服务商提供的 API 根地址，通常以 `/v1` 结尾。
++- `OPENAI_COMPATIBLE_MODEL`
++  - 具体模型名，按服务商文档填写。
++
++如果你使用 OpenRouter：
++
++```bash
++ENABLE_WHATSAPP=false
++ENABLE_LOCAL_WEB=true
++LOCAL_WEB_HOST=127.0.0.1
++LOCAL_WEB_PORT=3210
++
++MODEL_PROVIDER=openrouter
++OPENROUTER_API_KEY=your_openrouter_key
++OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
++OPENROUTER_MODEL=openai/gpt-5.4
++```
++
++如果你还想让外部系统调 webhook，可以再加：
++
++```bash
++LOCAL_WEB_SECRET=change-me
++```
++
++之后外部系统调用 `POST /webhook` 时，在请求头里带上：
++
++```text
++x-bioclaw-secret: change-me
++```
++
++### 4. 构建容器镜像
++
++```bash
++docker build -t bioclaw-agent:latest ./container
++```
++
++### 5. 启动本地网页聊天
++
++```bash
++npm run dev
++```
++
++然后在浏览器打开：
++
++```text
++http://127.0.0.1:3210
++```
++
++你会看到一个本地聊天页面，直接输入问题即可。
++
++### 6. 如果只想在终端里用，也可以用 CLI 模式运行
++
++```bash
++npm run cli
++```
++
++启动后直接输入任务，例如：
++
++```text
++Analyze DNA sequence ATGCGATCG and find ORFs
++```
++
++网页聊天和 CLI 这两条路径都不依赖 WhatsApp，也不依赖 QQ / 飞书。
++
++## 为什么先推荐 CLI
++
++- 改动最小
++- 对 Windows 最稳
++- 便于先验证 Docker、模型配置、容器工具链是否正常
++- 在 QQ / 飞书通道未实现前，这是最快能交付给用户的使用方式
++
++## QQ / 飞书的实际情况
++
++当前仓库没有 QQ / 飞书通道源码，因此不能只改配置就直接启用。
++
++如果后续要支持中国用户常用平台，建议优先级如下：
++
++1. 飞书（Lark）Bot / Webhook
++2. 企业微信 Bot / 应用回调
++3. QQ Bot
++
++原因是飞书和企业微信的 Bot / Webhook 方案通常更工程化，接入难度和稳定性都比 QQ 更可控。
+diff --git a/src/channels/local-web.ts b/src/channels/local-web.ts
+new file mode 100644
+index 0000000..2e6575a
+--- /dev/null
++++ b/src/channels/local-web.ts
+@@ -0,0 +1,700 @@
++import fs from 'fs';
++import http, { IncomingMessage, ServerResponse } from 'http';
++import path from 'path';
++
++import {
++  ASSISTANT_NAME,
++  GROUPS_DIR,
++  LOCAL_WEB_GROUP_FOLDER,
++  LOCAL_WEB_GROUP_JID,
++  LOCAL_WEB_HOST,
++  LOCAL_WEB_PORT,
++  LOCAL_WEB_SECRET,
++} from '../config.js';
++import { getRecentMessages, storeChatMetadata, storeMessageDirect } from '../db.js';
++import { logger } from '../logger.js';
++import { Channel, OnInboundMessage, OnChatMetadata } from '../types.js';
++
++interface LocalWebChannelOpts {
++  onMessage: OnInboundMessage;
++  onChatMetadata: OnChatMetadata;
++}
++
++interface IncomingPayload {
++  text?: string;
++  sender?: string;
++  senderName?: string;
++  chatJid?: string;
++}
++
++const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
++
++function sendJson(res: ServerResponse, statusCode: number, data: unknown): void {
++  res.statusCode = statusCode;
++  res.setHeader('Content-Type', 'application/json; charset=utf-8');
++  res.end(JSON.stringify(data));
++}
++
++function readBody(req: IncomingMessage, maxBytes = 1024 * 1024): Promise<Buffer> {
++  return new Promise((resolve, reject) => {
++    const chunks: Buffer[] = [];
++    let size = 0;
++    req.on('data', (chunk) => {
++      const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
++      chunks.push(buffer);
++      size += buffer.length;
++      if (size > maxBytes) {
++        reject(new Error('Request body too large'));
++        req.destroy();
++      }
++    });
++    req.on('end', () => resolve(Buffer.concat(chunks)));
++    req.on('error', reject);
++  });
++}
++
++function escapeHtml(text: string): string {
++  return text
++    .replace(/&/g, '&amp;')
++    .replace(/</g, '&lt;')
++    .replace(/>/g, '&gt;')
++    .replace(/"/g, '&quot;');
++}
++
++function sanitizeFileName(filename: string): string {
++  const basename = path.basename(filename).replace(/[^\w.\-]/g, '_');
++  return basename || 'upload.bin';
++}
++
++function ensureUploadDir(): string {
++  const uploadDir = path.join(GROUPS_DIR, LOCAL_WEB_GROUP_FOLDER, 'uploads');
++  fs.mkdirSync(uploadDir, { recursive: true });
++  return uploadDir;
++}
++
++function buildUploadPaths(filename: string): { relativePath: string; absolutePath: string; publicPath: string } {
++  const safeName = sanitizeFileName(filename);
++  const storedName = `${Date.now()}-${safeName}`;
++  const relativePath = path.posix.join('uploads', storedName);
++  return {
++    relativePath,
++    absolutePath: path.join(ensureUploadDir(), storedName),
++    publicPath: `/files/${relativePath}`,
++  };
++}
++
++function isSafeRelativePath(relativePath: string): boolean {
++  const normalized = path.posix.normalize(relativePath).replace(/^\/+/, '');
++  return normalized.length > 0 && !normalized.startsWith('..');
++}
++
++function renderPage(chatJid: string): string {
++  return `<!doctype html>
++<html lang="zh-CN">
++<head>
++  <meta charset="utf-8">
++  <meta name="viewport" content="width=device-width, initial-scale=1">
++  <title>BioClaw Local Web Chat</title>
++  <style>
++    :root {
++      --bg: #f4efe4;
++      --panel: rgba(255, 250, 242, 0.92);
++      --ink: #1b1a17;
++      --muted: #6f665b;
++      --accent: #1f6f5f;
++      --accent-2: #c96d38;
++      --line: rgba(27, 26, 23, 0.12);
++    }
++    * { box-sizing: border-box; }
++    body {
++      margin: 0;
++      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
++      color: var(--ink);
++      background:
++        radial-gradient(circle at top left, rgba(201, 109, 56, 0.18), transparent 32%),
++        radial-gradient(circle at top right, rgba(31, 111, 95, 0.2), transparent 30%),
++        linear-gradient(160deg, #f7f2e9 0%, #efe4d4 100%);
++      min-height: 100vh;
++      display: grid;
++      place-items: center;
++      padding: 24px;
++    }
++    .app {
++      width: min(980px, 100%);
++      height: min(92vh, 900px);
++      background: var(--panel);
++      border: 1px solid var(--line);
++      border-radius: 28px;
++      overflow: hidden;
++      display: grid;
++      grid-template-rows: auto 1fr auto;
++      backdrop-filter: blur(12px);
++      box-shadow: 0 20px 60px rgba(78, 58, 38, 0.18);
++    }
++    .header {
++      padding: 24px 24px 18px;
++      border-bottom: 1px solid var(--line);
++      background: linear-gradient(135deg, rgba(31,111,95,0.08), rgba(201,109,56,0.08));
++    }
++    .header h1 {
++      margin: 0;
++      font-size: clamp(26px, 4vw, 40px);
++      line-height: 1;
++      letter-spacing: -0.04em;
++    }
++    .sub {
++      margin-top: 8px;
++      color: var(--muted);
++      font-size: 14px;
++    }
++    .messages {
++      padding: 22px;
++      overflow: auto;
++      display: grid;
++      gap: 12px;
++      align-content: start;
++    }
++    .bubble {
++      max-width: min(82%, 760px);
++      border-radius: 20px;
++      padding: 14px 16px;
++      border: 1px solid var(--line);
++      white-space: pre-wrap;
++      word-break: break-word;
++      animation: rise .18s ease-out;
++    }
++    .bubble.user {
++      justify-self: end;
++      background: #1f6f5f;
++      color: #fffaf1;
++      border-color: transparent;
++    }
++    .bubble.bot {
++      justify-self: start;
++      background: #fffaf1;
++    }
++    .meta {
++      font-size: 12px;
++      color: var(--muted);
++      margin-bottom: 6px;
++    }
++    .content {
++      display: grid;
++      gap: 10px;
++    }
++    .content a {
++      color: inherit;
++    }
++    .file-card {
++      display: grid;
++      gap: 10px;
++      padding: 14px;
++      border-radius: 16px;
++      background: rgba(255,255,255,0.72);
++      border: 1px solid var(--line);
++      color: var(--ink);
++    }
++    .bubble.user .file-card {
++      background: rgba(255,255,255,0.16);
++      border-color: rgba(255,255,255,0.18);
++      color: #fffaf1;
++    }
++    .file-title {
++      font-weight: 700;
++      font-size: 15px;
++    }
++    .file-path {
++      font-family: "SFMono-Regular", Consolas, monospace;
++      font-size: 12px;
++      opacity: 0.8;
++      word-break: break-all;
++    }
++    .file-actions {
++      display: flex;
++      gap: 10px;
++      flex-wrap: wrap;
++    }
++    .file-button {
++      display: inline-flex;
++      align-items: center;
++      justify-content: center;
++      min-height: 38px;
++      padding: 0 14px;
++      border-radius: 999px;
++      text-decoration: none;
++      border: 1px solid var(--line);
++      background: rgba(255,255,255,0.88);
++      color: var(--ink);
++    }
++    .bubble.user .file-button {
++      background: rgba(255,255,255,0.14);
++      color: #fffaf1;
++      border-color: rgba(255,255,255,0.22);
++    }
++    .preview {
++      max-width: min(100%, 420px);
++      max-height: 260px;
++      border-radius: 14px;
++      object-fit: cover;
++      border: 1px solid var(--line);
++      background: rgba(255,255,255,0.5);
++    }
++    form {
++      border-top: 1px solid var(--line);
++      padding: 18px;
++      display: grid;
++      gap: 12px;
++      background: rgba(255,255,255,0.35);
++    }
++    textarea {
++      width: 100%;
++      min-height: 110px;
++      resize: vertical;
++      border: 1px solid var(--line);
++      border-radius: 18px;
++      padding: 14px 16px;
++      font: inherit;
++      background: rgba(255,255,255,0.9);
++    }
++    .row {
++      display: flex;
++      gap: 12px;
++      justify-content: space-between;
++      align-items: center;
++      flex-wrap: wrap;
++    }
++    .hint {
++      color: var(--muted);
++      font-size: 13px;
++    }
++    .toolbar {
++      display: flex;
++      gap: 10px;
++      align-items: center;
++      flex-wrap: wrap;
++    }
++    .upload {
++      position: relative;
++      overflow: hidden;
++      display: inline-flex;
++      align-items: center;
++      gap: 8px;
++      border-radius: 999px;
++      padding: 11px 16px;
++      border: 1px solid var(--line);
++      background: rgba(255,255,255,0.86);
++      cursor: pointer;
++    }
++    .upload input {
++      position: absolute;
++      inset: 0;
++      opacity: 0;
++      cursor: pointer;
++    }
++    .filename {
++      color: var(--muted);
++      font-size: 13px;
++    }
++    .status {
++      min-height: 18px;
++      color: var(--muted);
++      font-size: 13px;
++    }
++    button {
++      border: 0;
++      border-radius: 999px;
++      padding: 12px 18px;
++      font: inherit;
++      background: linear-gradient(135deg, var(--accent), #0f4e43);
++      color: white;
++      cursor: pointer;
++    }
++    button:disabled {
++      opacity: 0.6;
++      cursor: wait;
++    }
++    @keyframes rise {
++      from { transform: translateY(8px); opacity: 0; }
++      to { transform: translateY(0); opacity: 1; }
++    }
++  </style>
++</head>
++<body>
++  <main class="app">
++    <section class="header">
++      <h1>BioClaw Local Web Chat</h1>
++      <div class="sub">本地网页聊天入口，适合 Windows + 中国网络环境先验证 BioClaw。当前会话：${escapeHtml(chatJid)}</div>
++    </section>
++    <section id="messages" class="messages"></section>
++    <form id="composer">
++      <textarea id="text" placeholder="直接输入你的生物信息学问题，例如：分析 DNA 序列并找 ORF"></textarea>
++      <div class="row">
++        <div class="hint">如果当前群组未要求触发词，可直接发送；默认本地网页聊天不需要 @${escapeHtml(ASSISTANT_NAME)}。</div>
++        <div class="toolbar">
++          <label class="upload">
++            <span>上传文件</span>
++            <input id="file" type="file">
++          </label>
++          <span id="filename" class="filename">未选择文件</span>
++          <button id="send" type="submit">发送</button>
++        </div>
++      </div>
++      <div id="status" class="status"></div>
++    </form>
++  </main>
++  <script>
++    const chatJid = ${JSON.stringify(chatJid)};
++    const messagesEl = document.getElementById('messages');
++    const form = document.getElementById('composer');
++    const input = document.getElementById('text');
++    const fileInput = document.getElementById('file');
++    const fileNameEl = document.getElementById('filename');
++    const sendBtn = document.getElementById('send');
++    const statusEl = document.getElementById('status');
++    let lastSignature = '';
++
++    function render(messages) {
++      const signature = JSON.stringify(messages.map(m => [m.id, m.timestamp, m.content]));
++      if (signature === lastSignature) return;
++      lastSignature = signature;
++      messagesEl.innerHTML = messages.map((msg) => {
++        const kind = msg.is_from_me ? 'bot' : 'user';
++        const name = msg.is_from_me ? ${JSON.stringify(ASSISTANT_NAME)} : (msg.sender_name || 'User');
++        return '<article class="bubble ' + kind + '">' +
++          '<div class="meta">' + escapeHtml(name) + ' · ' + escapeHtml(msg.timestamp) + '</div>' +
++          '<div class="content">' + renderBody(msg.content) + '</div>' +
++        '</article>';
++      }).join('');
++      messagesEl.scrollTop = messagesEl.scrollHeight;
++    }
++
++    function renderBody(text) {
++      const upload = parseUploadMessage(text);
++      if (upload) {
++        return renderUploadCard(upload);
++      }
++      return escapeHtml(text)
++        .replace(/(\\/files\\/[\\w./%-]+)/g, '<a href="$1" target="_blank" rel="noreferrer">$1</a>')
++        .replace(/\\n/g, '<br>');
++    }
++
++    function parseUploadMessage(text) {
++      const lines = String(text).split('\\n');
++      const fileLine = lines.find((line) => line.startsWith('Uploaded file: '));
++      const workspaceLine = lines.find((line) => line.startsWith('Workspace path: '));
++      const previewLine = lines.find((line) => line.startsWith('Preview URL: '));
++      if (!fileLine || !workspaceLine || !previewLine) return null;
++      return {
++        filename: fileLine.slice('Uploaded file: '.length),
++        workspacePath: workspaceLine.slice('Workspace path: '.length),
++        previewUrl: previewLine.slice('Preview URL: '.length),
++      };
++    }
++
++    function renderUploadCard(file) {
++      const escapedName = escapeHtml(file.filename);
++      const escapedPath = escapeHtml(file.workspacePath);
++      const escapedPreview = escapeHtml(file.previewUrl);
++      const isImage = /\\.(png|jpe?g|gif|webp|svg)$/i.test(file.filename);
++      const preview = isImage
++        ? '<img class="preview" src="' + escapedPreview + '" alt="' + escapedName + '">'
++        : '';
++      return [
++        '<section class="file-card">',
++        '<div class="file-title">已上传文件 · ' + escapedName + '</div>',
++        '<div class="file-path">工作区路径：' + escapedPath + '</div>',
++        preview,
++        '<div class="file-actions">',
++        '<a class="file-button" href="' + escapedPreview + '" target="_blank" rel="noreferrer">预览</a>',
++        '<a class="file-button" href="' + escapedPreview + '" download>下载</a>',
++        '</div>',
++        '</section>',
++      ].join('');
++    }
++
++    function escapeHtml(text) {
++      return String(text)
++        .replace(/&/g, '&amp;')
++        .replace(/</g, '&lt;')
++        .replace(/>/g, '&gt;')
++        .replace(/"/g, '&quot;');
++    }
++
++    function setStatus(text) {
++      statusEl.textContent = text || '';
++    }
++
++    async function refresh() {
++      const res = await fetch('/api/messages?chatJid=' + encodeURIComponent(chatJid));
++      if (!res.ok) return;
++      const data = await res.json();
++      render(data.messages || []);
++    }
++
++    fileInput.addEventListener('change', () => {
++      const file = fileInput.files && fileInput.files[0];
++      fileNameEl.textContent = file ? file.name : '未选择文件';
++    });
++
++    async function uploadSelectedFile() {
++      const file = fileInput.files && fileInput.files[0];
++      if (!file) return null;
++
++      setStatus('正在上传文件...');
++      const res = await fetch('/api/upload?chatJid=' + encodeURIComponent(chatJid), {
++        method: 'POST',
++        headers: {
++          'x-file-name': encodeURIComponent(file.name),
++          'content-type': file.type || 'application/octet-stream'
++        },
++        body: file
++      });
++      if (!res.ok) {
++        throw new Error('文件上传失败');
++      }
++      const data = await res.json();
++      fileInput.value = '';
++      fileNameEl.textContent = '未选择文件';
++      return data;
++    }
++
++    form.addEventListener('submit', async (event) => {
++      event.preventDefault();
++      const text = input.value.trim();
++      const file = fileInput.files && fileInput.files[0];
++      if (!text && !file) return;
++      sendBtn.disabled = true;
++      try {
++        if (file) {
++          await uploadSelectedFile();
++        }
++        if (text) {
++          const res = await fetch('/api/messages', {
++            method: 'POST',
++            headers: { 'Content-Type': 'application/json' },
++            body: JSON.stringify({ chatJid, text })
++          });
++          if (!res.ok) {
++            throw new Error('消息发送失败');
++          }
++          input.value = '';
++        }
++        setStatus('');
++        await refresh();
++      } finally {
++        sendBtn.disabled = false;
++      }
++    });
++
++    refresh();
++    setInterval(refresh, 2000);
++  </script>
++</body>
++</html>`;
++}
++
++export class LocalWebChannel implements Channel {
++  name = 'local-web';
++  prefixAssistantName = true;
++
++  private server?: http.Server;
++  private connected = false;
++  private opts: LocalWebChannelOpts;
++
++  constructor(opts: LocalWebChannelOpts) {
++    this.opts = opts;
++  }
++
++  async connect(): Promise<void> {
++    if (this.server) return;
++
++    this.server = http.createServer(async (req, res) => {
++      try {
++        await this.handleRequest(req, res);
++      } catch (err) {
++        logger.error({ err }, 'Local web request failed');
++        sendJson(res, 500, { error: 'Internal server error' });
++      }
++    });
++
++    await new Promise<void>((resolve, reject) => {
++      this.server!.once('error', reject);
++      this.server!.listen(LOCAL_WEB_PORT, LOCAL_WEB_HOST, () => {
++        this.server!.off('error', reject);
++        resolve();
++      });
++    });
++
++    this.connected = true;
++    logger.info(
++      { host: LOCAL_WEB_HOST, port: LOCAL_WEB_PORT, jid: LOCAL_WEB_GROUP_JID },
++      'Local web channel listening',
++    );
++  }
++
++  isConnected(): boolean {
++    return this.connected;
++  }
++
++  ownsJid(jid: string): boolean {
++    return jid.endsWith('@local.web');
++  }
++
++  async disconnect(): Promise<void> {
++    this.connected = false;
++    if (!this.server) return;
++    await new Promise<void>((resolve, reject) => {
++      this.server!.close((err) => (err ? reject(err) : resolve()));
++    });
++    this.server = undefined;
++  }
++
++  async sendMessage(jid: string, text: string): Promise<void> {
++    const now = new Date().toISOString();
++    storeChatMetadata(jid, now, jid);
++    storeMessageDirect({
++      id: `local-web-out-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
++      chat_jid: jid,
++      sender: 'bioclaw@local.web',
++      sender_name: ASSISTANT_NAME,
++      content: text,
++      timestamp: now,
++      is_from_me: true,
++    });
++  }
++
++  async sendImage(jid: string, imagePath: string, caption?: string): Promise<void> {
++    const filename = path.basename(imagePath);
++    const fallback = caption
++      ? `${caption}\n[Image generated: ${filename}]`
++      : `[Image generated: ${filename}]`;
++    await this.sendMessage(jid, fallback);
++  }
++
++  private async handleRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
++    const url = new URL(req.url || '/', `http://${req.headers.host || '127.0.0.1'}`);
++
++    if (req.method === 'GET' && url.pathname === '/health') {
++      sendJson(res, 200, { ok: true });
++      return;
++    }
++
++    if (req.method === 'GET' && url.pathname === '/') {
++      res.statusCode = 200;
++      res.setHeader('Content-Type', 'text/html; charset=utf-8');
++      res.end(renderPage(LOCAL_WEB_GROUP_JID));
++      return;
++    }
++
++    if (req.method === 'GET' && url.pathname === '/api/messages') {
++      const chatJid = url.searchParams.get('chatJid') || LOCAL_WEB_GROUP_JID;
++      sendJson(res, 200, { messages: getRecentMessages(chatJid, 100) });
++      return;
++    }
++
++    if (req.method === 'GET' && url.pathname.startsWith('/files/')) {
++      const relativePath = url.pathname.slice('/files/'.length);
++      if (!isSafeRelativePath(relativePath)) {
++        sendJson(res, 400, { error: 'Invalid file path' });
++        return;
++      }
++      const absolutePath = path.join(GROUPS_DIR, LOCAL_WEB_GROUP_FOLDER, relativePath);
++      if (!absolutePath.startsWith(path.join(GROUPS_DIR, LOCAL_WEB_GROUP_FOLDER))) {
++        sendJson(res, 403, { error: 'Forbidden' });
++        return;
++      }
++      if (!fs.existsSync(absolutePath)) {
++        sendJson(res, 404, { error: 'File not found' });
++        return;
++      }
++      res.statusCode = 200;
++      res.setHeader('Content-Type', 'application/octet-stream');
++      res.end(fs.readFileSync(absolutePath));
++      return;
++    }
++
++    if (req.method === 'POST' && url.pathname === '/api/messages') {
++      const body = (await readBody(req)).toString('utf-8');
++      const payload = JSON.parse(body || '{}') as IncomingPayload;
++      await this.acceptInbound(payload.chatJid || LOCAL_WEB_GROUP_JID, payload.text || '', 'web-user@local.web', 'Web User');
++      sendJson(res, 200, { ok: true });
++      return;
++    }
++
++    if (req.method === 'POST' && url.pathname === '/api/upload') {
++      const chatJid = url.searchParams.get('chatJid') || LOCAL_WEB_GROUP_JID;
++      const fileNameHeader = req.headers['x-file-name'];
++      const originalName = typeof fileNameHeader === 'string'
++        ? decodeURIComponent(fileNameHeader)
++        : 'upload.bin';
++      const body = await readBody(req, MAX_UPLOAD_BYTES);
++      if (body.length === 0) {
++        sendJson(res, 400, { error: 'Empty file upload' });
++        return;
++      }
++      const paths = buildUploadPaths(originalName);
++      fs.writeFileSync(paths.absolutePath, body);
++      await this.acceptInbound(
++        chatJid,
++        [
++          `Uploaded file: ${originalName}`,
++          `Workspace path: ${paths.relativePath}`,
++          `Preview URL: ${paths.publicPath}`,
++        ].join('\n'),
++        'web-user@local.web',
++        'Web User',
++      );
++      sendJson(res, 200, {
++        ok: true,
++        filename: originalName,
++        workspacePath: paths.relativePath,
++        publicPath: paths.publicPath,
++      });
++      return;
++    }
++
++    if (req.method === 'POST' && url.pathname === '/webhook') {
++      if (LOCAL_WEB_SECRET) {
++        const supplied = req.headers['x-bioclaw-secret'];
++        if (supplied !== LOCAL_WEB_SECRET) {
++          sendJson(res, 403, { error: 'Forbidden' });
++          return;
++        }
++      }
++      const body = (await readBody(req)).toString('utf-8');
++      const payload = JSON.parse(body || '{}') as IncomingPayload;
++      await this.acceptInbound(
++        payload.chatJid || LOCAL_WEB_GROUP_JID,
++        payload.text || '',
++        payload.sender || 'webhook-user@local.web',
++        payload.senderName || 'Webhook User',
++      );
++      sendJson(res, 200, { ok: true });
++      return;
++    }
++
++    sendJson(res, 404, { error: 'Not found' });
++  }
++
++  private async acceptInbound(
++    chatJid: string,
++    text: string,
++    sender: string,
++    senderName: string,
++  ): Promise<void> {
++    const trimmed = text.trim();
++    if (!trimmed) return;
++
++    const now = new Date().toISOString();
++    this.opts.onChatMetadata(chatJid, now, 'Local Web Chat');
++    this.opts.onMessage(chatJid, {
++      id: `local-web-in-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
++      chat_jid: chatJid,
++      sender,
++      sender_name: senderName,
++      content: trimmed,
++      timestamp: now,
++      is_from_me: false,
++    });
++  }
++}
+diff --git a/src/channels/whatsapp.test.ts b/src/channels/whatsapp.test.ts
+index 1aeb58f..1d688ea 100644
+--- a/src/channels/whatsapp.test.ts
++++ b/src/channels/whatsapp.test.ts
+@@ -72,6 +72,11 @@ let fakeSocket: ReturnType<typeof createFakeSocket>;
+ vi.mock('@whiskeysockets/baileys', () => {
+   return {
+     default: vi.fn(() => fakeSocket),
++    Browsers: {
++      macOS: vi.fn((browser: string) => ['Mac OS', browser, '14.4.1']),
++      windows: vi.fn((browser: string) => ['Windows', browser, '10.0.22631']),
++      appropriate: vi.fn((browser: string) => ['Ubuntu', browser, '22.04.4']),
++    },
+     DisconnectReason: {
+       loggedOut: 401,
+       badSession: 500,
+@@ -126,8 +131,9 @@ function triggerDisconnect(statusCode: number) {
+   });
+ }
+ 
+-function triggerMessages(messages: unknown[]) {
++async function triggerMessages(messages: unknown[]) {
+   fakeSocket._ev.emit('messages.upsert', { messages });
++  await new Promise((r) => setTimeout(r, 0));
+ }
+ 
+ // --- Tests ---
+@@ -297,7 +303,7 @@ describe('WhatsAppChannel', () => {
+ 
+       await connectChannel(channel);
+ 
+-      triggerMessages([
++      await triggerMessages([
+         {
+           key: {
+             id: 'msg-1',
+@@ -332,7 +338,7 @@ describe('WhatsAppChannel', () => {
+ 
+       await connectChannel(channel);
+ 
+-      triggerMessages([
++      await triggerMessages([
+         {
+           key: {
+             id: 'msg-2',
+@@ -359,7 +365,7 @@ describe('WhatsAppChannel', () => {
+ 
+       await connectChannel(channel);
+ 
+-      triggerMessages([
++      await triggerMessages([
+         {
+           key: {
+             id: 'msg-3',
+@@ -381,7 +387,7 @@ describe('WhatsAppChannel', () => {
+ 
+       await connectChannel(channel);
+ 
+-      triggerMessages([
++      await triggerMessages([
+         {
+           key: {
+             id: 'msg-4',
+@@ -402,7 +408,7 @@ describe('WhatsAppChannel', () => {
+ 
+       await connectChannel(channel);
+ 
+-      triggerMessages([
++      await triggerMessages([
+         {
+           key: {
+             id: 'msg-5',
+@@ -430,7 +436,7 @@ describe('WhatsAppChannel', () => {
+ 
+       await connectChannel(channel);
+ 
+-      triggerMessages([
++      await triggerMessages([
+         {
+           key: {
+             id: 'msg-6',
+@@ -458,7 +464,7 @@ describe('WhatsAppChannel', () => {
+ 
+       await connectChannel(channel);
+ 
+-      triggerMessages([
++      await triggerMessages([
+         {
+           key: {
+             id: 'msg-7',
+@@ -486,7 +492,7 @@ describe('WhatsAppChannel', () => {
+ 
+       await connectChannel(channel);
+ 
+-      triggerMessages([
++      await triggerMessages([
+         {
+           key: {
+             id: 'msg-8',
+@@ -515,7 +521,7 @@ describe('WhatsAppChannel', () => {
+ 
+       await connectChannel(channel);
+ 
+-      triggerMessages([
++      await triggerMessages([
+         {
+           key: {
+             id: 'msg-9',
+@@ -556,7 +562,7 @@ describe('WhatsAppChannel', () => {
+ 
+       // The socket has lid '9876543210:1@lid' → phone '1234567890@s.whatsapp.net'
+       // Send a message from the LID
+-      triggerMessages([
++      await triggerMessages([
+         {
+           key: {
+             id: 'msg-lid',
+@@ -582,7 +588,7 @@ describe('WhatsAppChannel', () => {
+ 
+       await connectChannel(channel);
+ 
+-      triggerMessages([
++      await triggerMessages([
+         {
+           key: {
+             id: 'msg-normal',
+@@ -608,7 +614,7 @@ describe('WhatsAppChannel', () => {
+ 
+       await connectChannel(channel);
+ 
+-      triggerMessages([
++      await triggerMessages([
+         {
+           key: {
+             id: 'msg-unknown-lid',
+diff --git a/src/channels/whatsapp.ts b/src/channels/whatsapp.ts
+index 1fe73b1..8e11eba 100644
+--- a/src/channels/whatsapp.ts
++++ b/src/channels/whatsapp.ts
+@@ -1,4 +1,3 @@
+-import { exec } from 'child_process';
+ import fs from 'fs';
+ import path from 'path';
+ 
+@@ -18,6 +17,7 @@ import {
+   updateChatName,
+ } from '../db.js';
+ import { logger } from '../logger.js';
++import { getWhatsAppBrowser, notifyAuthRequired } from '../platform.js';
+ import { Channel, OnInboundMessage, OnChatMetadata, RegisteredGroup } from '../types.js';
+ 
+ const GROUP_SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
+@@ -74,7 +74,7 @@ export class WhatsAppChannel implements Channel {
+       ...(version ? { version } : {}),
+       printQRInTerminal: false,
+       logger,
+-      browser: Browsers.macOS('Chrome'),
++      browser: getWhatsAppBrowser('Chrome'),
+     });
+ 
+     this.sock.ev.on('connection.update', (update) => {
+@@ -84,9 +84,7 @@ export class WhatsAppChannel implements Channel {
+         const msg =
+           'WhatsApp authentication required. Run /setup in Claude Code.';
+         logger.error(msg);
+-        exec(
+-          `osascript -e 'display notification "${msg}" with title "BioClaw" sound name "Basso"'`,
+-        );
++        notifyAuthRequired(msg);
+         setTimeout(() => process.exit(1), 1000);
+       }
+ 
+diff --git a/src/cli.ts b/src/cli.ts
+index b12002d..953560e 100644
+--- a/src/cli.ts
++++ b/src/cli.ts
+@@ -70,7 +70,17 @@ function readSecrets(): Record<string, string> {
+     if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+       value = value.slice(1, -1);
+     }
+-    if (['ANTHROPIC_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN'].includes(key) && value) {
++    if ([
++      'ANTHROPIC_API_KEY',
++      'CLAUDE_CODE_OAUTH_TOKEN',
++      'MODEL_PROVIDER',
++      'OPENROUTER_API_KEY',
++      'OPENROUTER_BASE_URL',
++      'OPENROUTER_MODEL',
++      'OPENAI_COMPATIBLE_API_KEY',
++      'OPENAI_COMPATIBLE_BASE_URL',
++      'OPENAI_COMPATIBLE_MODEL',
++    ].includes(key) && value) {
+       secrets[key] = value;
+     }
+   }
+diff --git a/src/config.ts b/src/config.ts
+index e92774e..ba57780 100644
+--- a/src/config.ts
++++ b/src/config.ts
+@@ -1,12 +1,27 @@
++import { loadEnvFile } from './env.js';
++import { getHomeDir } from './platform.js';
+ import path from 'path';
+ 
++loadEnvFile();
++
+ export const ASSISTANT_NAME = process.env.ASSISTANT_NAME || 'Bioclaw';
+ export const POLL_INTERVAL = 2000;
+ export const SCHEDULER_POLL_INTERVAL = 60000;
++export const ENABLE_WHATSAPP = process.env.ENABLE_WHATSAPP !== 'false';
++export const ENABLE_LOCAL_WEB = process.env.ENABLE_LOCAL_WEB === 'true';
++export const LOCAL_WEB_HOST = process.env.LOCAL_WEB_HOST || '127.0.0.1';
++export const LOCAL_WEB_PORT = parseInt(process.env.LOCAL_WEB_PORT || '3210', 10);
++export const LOCAL_WEB_GROUP_JID =
++  process.env.LOCAL_WEB_GROUP_JID || 'local-web@local.web';
++export const LOCAL_WEB_GROUP_NAME =
++  process.env.LOCAL_WEB_GROUP_NAME || 'Local Web Chat';
++export const LOCAL_WEB_GROUP_FOLDER =
++  process.env.LOCAL_WEB_GROUP_FOLDER || 'local-web';
++export const LOCAL_WEB_SECRET = process.env.LOCAL_WEB_SECRET || '';
+ 
+ // Absolute paths needed for container mounts
+ const PROJECT_ROOT = process.cwd();
+-const HOME_DIR = process.env.HOME || '/Users/user';
++const HOME_DIR = getHomeDir();
+ 
+ // Mount security: allowlist stored OUTSIDE project root, never mounted into containers
+ export const MOUNT_ALLOWLIST_PATH = path.join(
+diff --git a/src/container-runner.ts b/src/container-runner.ts
+index a398daf..c3ac94e 100644
+--- a/src/container-runner.ts
++++ b/src/container-runner.ts
+@@ -4,7 +4,6 @@
+  */
+ import { ChildProcess, exec, spawn } from 'child_process';
+ import fs from 'fs';
+-import os from 'os';
+ import path from 'path';
+ 
+ import {
+@@ -17,22 +16,13 @@ import {
+ } from './config.js';
+ import { logger } from './logger.js';
+ import { validateAdditionalMounts } from './mount-security.js';
++import { getHomeDir } from './platform.js';
+ import { RegisteredGroup } from './types.js';
+ 
+ // Sentinel markers for robust output parsing (must match agent-runner)
+ const OUTPUT_START_MARKER = '---BIOCLAW_OUTPUT_START---';
+ const OUTPUT_END_MARKER = '---BIOCLAW_OUTPUT_END---';
+ 
+-function getHomeDir(): string {
+-  const home = process.env.HOME || os.homedir();
+-  if (!home) {
+-    throw new Error(
+-      'Unable to determine home directory: HOME environment variable is not set and os.homedir() returned empty',
+-    );
+-  }
+-  return home;
+-}
+-
+ export interface ContainerInput {
+   prompt: string;
+   sessionId?: string;
+diff --git a/src/db.ts b/src/db.ts
+index c1daa5b..22b2fa7 100644
+--- a/src/db.ts
++++ b/src/db.ts
+@@ -276,6 +276,24 @@ export function getMessagesSince(
+     .all(chatJid, sinceTimestamp, `${botPrefix}:%`) as NewMessage[];
+ }
+ 
++export function getRecentMessages(
++  chatJid: string,
++  limit = 100,
++): NewMessage[] {
++  return db
++    .prepare(
++      `
++      SELECT id, chat_jid, sender, sender_name, content, timestamp, is_from_me
++      FROM messages
++      WHERE chat_jid = ?
++      ORDER BY timestamp DESC
++      LIMIT ?
++    `,
++    )
++    .all(chatJid, limit)
++    .reverse() as NewMessage[];
++}
++
+ export function createTask(
+   task: Omit<ScheduledTask, 'last_run' | 'last_result'>,
+ ): void {
+diff --git a/src/env.ts b/src/env.ts
+new file mode 100644
+index 0000000..00073c5
+--- /dev/null
++++ b/src/env.ts
+@@ -0,0 +1,33 @@
++import fs from 'fs';
++import path from 'path';
++
++let loaded = false;
++
++export function loadEnvFile(): void {
++  if (loaded) return;
++  loaded = true;
++
++  const envPath = path.join(process.cwd(), '.env');
++  if (!fs.existsSync(envPath)) return;
++
++  const content = fs.readFileSync(envPath, 'utf-8');
++  for (const line of content.split('\n')) {
++    const trimmed = line.trim();
++    if (!trimmed || trimmed.startsWith('#')) continue;
++
++    const eqIdx = trimmed.indexOf('=');
++    if (eqIdx === -1) continue;
++
++    const key = trimmed.slice(0, eqIdx).trim();
++    if (!key || process.env[key] !== undefined) continue;
++
++    let value = trimmed.slice(eqIdx + 1).trim();
++    if (
++      (value.startsWith('"') && value.endsWith('"')) ||
++      (value.startsWith("'") && value.endsWith("'"))
++    ) {
++      value = value.slice(1, -1);
++    }
++    process.env[key] = value;
++  }
++}
+diff --git a/src/formatting.test.ts b/src/formatting.test.ts
+index b35aad6..fed9c3b 100644
+--- a/src/formatting.test.ts
++++ b/src/formatting.test.ts
+@@ -102,17 +102,17 @@ describe('formatMessages', () => {
+ // --- TRIGGER_PATTERN ---
+ 
+ describe('TRIGGER_PATTERN', () => {
+-  it('matches @Bio at start of message', () => {
+-    expect(TRIGGER_PATTERN.test('@Bio hello')).toBe(true);
++  it(`matches @${ASSISTANT_NAME} at start of message`, () => {
++    expect(TRIGGER_PATTERN.test(`@${ASSISTANT_NAME} hello`)).toBe(true);
+   });
+ 
+   it('matches case-insensitively', () => {
+-    expect(TRIGGER_PATTERN.test('@bio hello')).toBe(true);
+-    expect(TRIGGER_PATTERN.test('@BIO hello')).toBe(true);
++    expect(TRIGGER_PATTERN.test(`@${ASSISTANT_NAME.toLowerCase()} hello`)).toBe(true);
++    expect(TRIGGER_PATTERN.test(`@${ASSISTANT_NAME.toUpperCase()} hello`)).toBe(true);
+   });
+ 
+   it('does not match when not at start of message', () => {
+-    expect(TRIGGER_PATTERN.test('hello @Bio')).toBe(false);
++    expect(TRIGGER_PATTERN.test(`hello @${ASSISTANT_NAME}`)).toBe(false);
+   });
+ 
+   it('does not match partial name like @Andrew (word boundary)', () => {
+@@ -120,16 +120,16 @@ describe('TRIGGER_PATTERN', () => {
+   });
+ 
+   it('matches with word boundary before apostrophe', () => {
+-    expect(TRIGGER_PATTERN.test("@Bio's thing")).toBe(true);
++    expect(TRIGGER_PATTERN.test(`@${ASSISTANT_NAME}'s thing`)).toBe(true);
+   });
+ 
+-  it('matches @Bio alone (end of string is a word boundary)', () => {
+-    expect(TRIGGER_PATTERN.test('@Bio')).toBe(true);
++  it(`matches @${ASSISTANT_NAME} alone (end of string is a word boundary)`, () => {
++    expect(TRIGGER_PATTERN.test(`@${ASSISTANT_NAME}`)).toBe(true);
+   });
+ 
+   it('matches with leading whitespace after trim', () => {
+     // The actual usage trims before testing: TRIGGER_PATTERN.test(m.content.trim())
+-    expect(TRIGGER_PATTERN.test('@Bio hey'.trim())).toBe(true);
++    expect(TRIGGER_PATTERN.test(`@${ASSISTANT_NAME} hey`.trim())).toBe(true);
+   });
+ });
+ 
+@@ -235,7 +235,7 @@ describe('trigger gating (requiresTrigger interaction)', () => {
+   });
+ 
+   it('non-main group with requiresTrigger=true processes when trigger present', () => {
+-    const msgs = [makeMsg({ content: '@Bio do something' })];
++    const msgs = [makeMsg({ content: `@${ASSISTANT_NAME} do something` })];
+     expect(shouldProcess(false, true, msgs)).toBe(true);
+   });
+ 
+diff --git a/src/index.ts b/src/index.ts
+index 2a13ea7..0cd8f57 100644
+--- a/src/index.ts
++++ b/src/index.ts
+@@ -6,11 +6,17 @@ import path from 'path';
+ import {
+   ASSISTANT_NAME,
+   DATA_DIR,
++  ENABLE_LOCAL_WEB,
++  ENABLE_WHATSAPP,
+   IDLE_TIMEOUT,
++  LOCAL_WEB_GROUP_FOLDER,
++  LOCAL_WEB_GROUP_JID,
++  LOCAL_WEB_GROUP_NAME,
+   MAIN_GROUP_FOLDER,
+   POLL_INTERVAL,
+   TRIGGER_PATTERN,
+ } from './config.js';
++import { LocalWebChannel } from './channels/local-web.js';
+ import { WhatsAppChannel } from './channels/whatsapp.js';
+ import { WeComChannel } from './channels/wecom.js';
+ import { DiscordChannel } from './channels/discord.js';
+@@ -37,7 +43,7 @@ import {
+ } from './db.js';
+ import { GroupQueue } from './group-queue.js';
+ import { startIpcWatcher } from './ipc.js';
+-import { formatMessages, formatOutbound } from './router.js';
++import { findChannel, formatMessages, formatOutbound } from './router.js';
+ import { startSchedulerLoop } from './task-scheduler.js';
+ import { Channel, NewMessage, RegisteredGroup } from './types.js';
+ import { logger } from './logger.js';
+@@ -51,7 +57,8 @@ let registeredGroups: Record<string, RegisteredGroup> = {};
+ let lastAgentTimestamp: Record<string, string> = {};
+ let messageLoopRunning = false;
+ 
+-let whatsapp: WhatsAppChannel;
++<<<<<<< HEAD
++let whatsapp: WhatsAppChannel | undefined;
+ let wecom: WeComChannel | null = null;
+ const channels: Channel[] = [];
+ const queue = new GroupQueue();
+@@ -127,7 +134,11 @@ export function getAvailableGroups(): import('./container-runner.js').AvailableG
+   const registeredJids = new Set(Object.keys(registeredGroups));
+ 
+   return chats
+-    .filter((c) => c.jid !== '__group_sync__' && c.jid.endsWith('@g.us'))
++    .filter(
++      (c) =>
++        c.jid !== '__group_sync__' &&
++        (c.jid.endsWith('@g.us') || c.jid.endsWith('@local.web')),
++    )
+     .map((c) => ({
+       jid: c.jid,
+       name: c.name,
+@@ -148,6 +159,11 @@ export function _setRegisteredGroups(groups: Record<string, RegisteredGroup>): v
+ async function processGroupMessages(chatJid: string): Promise<boolean> {
+   const group = registeredGroups[chatJid];
+   if (!group) return true;
++  const channel = findChannel(channels, chatJid);
++  if (!channel) {
++    logger.warn({ chatJid }, 'No channel found for group');
++    return true;
++  }
+ 
+   const isMainGroup = group.folder === MAIN_GROUP_FOLDER;
+ 
+@@ -193,8 +209,7 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
+     }, IDLE_TIMEOUT);
+   };
+ 
+-  const ch = channelForJid(chatJid);
+-  if (ch?.setTyping) await ch.setTyping(chatJid, true);
++  await channel.setTyping?.(chatJid, true);
+   let hadError = false;
+   let outputSentToUser = false;
+ 
+@@ -215,7 +230,7 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
+     }
+   });
+ 
+-  if (ch?.setTyping) await ch.setTyping(chatJid, false);
++  await channel.setTyping?.(chatJid, false);
+   if (idleTimer) clearTimeout(idleTimer);
+ 
+   if (output === 'error' || hadError) {
+@@ -429,6 +444,7 @@ function ensureDockerRunning(): void {
+     console.error('║  Agents cannot run without Docker. To fix:                     ║');
+     console.error('║  macOS: Start Docker Desktop                                   ║');
+     console.error('║  Linux: sudo systemctl start docker                            ║');
++    console.error('║  Windows: Start Docker Desktop (prefer WSL2 backend)           ║');
+     console.error('║                                                                ║');
+     console.error('║  Install from: https://docker.com/products/docker-desktop      ║');
+     console.error('╚════════════════════════════════════════════════════════════════╝\n');
+@@ -465,7 +481,7 @@ async function main(): Promise<void> {
+   const shutdown = async (signal: string) => {
+     logger.info({ signal }, 'Shutdown signal received');
+     await queue.shutdown(10000);
+-    for (const ch of channels) await ch.disconnect();
++    await Promise.all(channels.map((channel) => channel.disconnect()));
+     process.exit(0);
+   };
+   process.on('SIGTERM', () => shutdown('SIGTERM'));
+@@ -489,6 +505,41 @@ async function main(): Promise<void> {
+     },
+   };
+ 
++  if (ENABLE_LOCAL_WEB) {
++    if (!registeredGroups[LOCAL_WEB_GROUP_JID]) {
++      const folderConflict = Object.entries(registeredGroups).find(
++        ([jid, group]) =>
++          jid !== LOCAL_WEB_GROUP_JID && group.folder === LOCAL_WEB_GROUP_FOLDER,
++      );
++      if (folderConflict) {
++        logger.warn(
++          {
++            localWebJid: LOCAL_WEB_GROUP_JID,
++            folder: LOCAL_WEB_GROUP_FOLDER,
++            conflictJid: folderConflict[0],
++          },
++          'Skipping local web auto-registration because folder is already in use',
++        );
++      } else {
++        registerGroup(LOCAL_WEB_GROUP_JID, {
++          name: LOCAL_WEB_GROUP_NAME,
++          folder: LOCAL_WEB_GROUP_FOLDER,
++          trigger: `@${ASSISTANT_NAME}`,
++          added_at: new Date().toISOString(),
++          requiresTrigger: false,
++        });
++      }
++    }
++
++    const localWeb = new LocalWebChannel({
++      onMessage: (_chatJid, msg) => storeMessage(msg),
++      onChatMetadata: (chatJid, timestamp, name) =>
++        storeChatMetadata(chatJid, timestamp, name),
++    });
++    channels.push(localWeb);
++    await localWeb.connect();
++  }
++
+   // WeCom channel (connect first — WhatsApp's heavy sync can starve the event loop)
+   const wecomBotId = process.env.WECOM_BOT_ID;
+   const wecomSecret = process.env.WECOM_SECRET;
+@@ -509,7 +560,7 @@ async function main(): Promise<void> {
+   }
+ 
+   // WhatsApp channel (skip if DISABLE_WHATSAPP is set)
+-  if (!process.env.DISABLE_WHATSAPP) {
++  if (ENABLE_WHATSAPP && !process.env.DISABLE_WHATSAPP) {
+     whatsapp = new WhatsAppChannel(channelCallbacks);
+     channels.push(whatsapp);
+     await whatsapp.connect();
+@@ -546,10 +597,10 @@ async function main(): Promise<void> {
+     },
+   });
+   startIpcWatcher({
+-    sendMessage: (jid, text) => sendToChannel(jid, text),
+-    sendImage: (jid, imagePath, caption) => sendImageToChannel(jid, imagePath, caption),
+     registeredGroups: () => registeredGroups,
+     registerGroup,
++    sendMessage: (jid, text) => sendToChannel(jid, text),
++    sendImage: (jid, imagePath, caption) => sendImageToChannel(jid, imagePath, caption),
+     syncGroupMetadata: (force) => whatsapp?.syncGroupMetadata(force),
+     getAvailableGroups,
+     writeGroupsSnapshot: (gf, im, ag, rj) => writeGroupsSnapshot(gf, im, ag, rj),
+diff --git a/src/platform.ts b/src/platform.ts
+new file mode 100644
+index 0000000..2043fcb
+--- /dev/null
++++ b/src/platform.ts
+@@ -0,0 +1,27 @@
++import { exec } from 'child_process';
++import os from 'os';
++
++import { Browsers } from '@whiskeysockets/baileys';
++
++export function getHomeDir(): string {
++  return process.env.HOME || process.env.USERPROFILE || os.homedir();
++}
++
++export function getWhatsAppBrowser(browser = 'Chrome'): [string, string, string] {
++  if (process.platform === 'darwin') {
++    return Browsers.macOS(browser);
++  }
++  if (process.platform === 'win32') {
++    return Browsers.windows(browser);
++  }
++  return Browsers.appropriate(browser);
++}
++
++export function notifyAuthRequired(message: string): void {
++  if (process.platform !== 'darwin') return;
++
++  const escaped = message.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
++  exec(
++    `osascript -e 'display notification "${escaped}" with title "BioClaw" sound name "Basso"'`,
++  );
++}
+diff --git a/src/whatsapp-auth.ts b/src/whatsapp-auth.ts
+index 5119ce8..4f358da 100644
+--- a/src/whatsapp-auth.ts
++++ b/src/whatsapp-auth.ts
+@@ -13,13 +13,14 @@ import qrcode from 'qrcode-terminal';
+ import readline from 'readline';
+ 
+ import makeWASocket, {
+-  Browsers,
+   DisconnectReason,
+   fetchLatestBaileysVersion,
+   makeCacheableSignalKeyStore,
+   useMultiFileAuthState,
+ } from '@whiskeysockets/baileys';
+ 
++import { getWhatsAppBrowser } from './platform.js';
++
+ const AUTH_DIR = './store/auth';
+ const QR_FILE = './store/qr-data.txt';
+ const STATUS_FILE = './store/auth-status.txt';
+@@ -74,7 +75,7 @@ async function connectSocket(phoneNumber?: string): Promise<void> {
+     ...(version ? { version } : {}),
+     printQRInTerminal: false,
+     logger,
+-    browser: Browsers.macOS('Chrome'),
++    browser: getWhatsAppBrowser('Chrome'),
+   });
+ 
+   if (usePairingCode && phoneNumber && !pairingCodeRequested) {
