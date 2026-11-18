@@ -1,0 +1,66 @@
+version = "1.0"
+
+[task]
+name = "default/medspacy__medspacy-63"
+description = "Adding a bunch of section patterns"
+
+[metadata]
+difficulty = "large"
+category = "bugfix"
+keywords = [
+    "medspacy",
+    "pr_diff",
+]
+
+[metadata.repo2env]
+pipeline = "pr_diff"
+pipeline_version = "0.3.0"
+repo = "medspacy/medspacy"
+ref = "b6265a8baaa39874d8bd9ddb0dd1ee9dc0b41ad8"
+reference = "https://github.com/medspacy/medspacy/pull/63"
+source_access = "auto"
+built_at = "2026-11-18T03:46:53.817999+00:00"
+reward_kinds = [
+    "diff_similarity",
+]
+spec_version = "0.2.0"
+content_hash = "sha256:4a3a4de2a2a9f4084794ae29340e6672c067ac6bb02e0866a68c76135af3d8d1"
+
+[metadata.repo2env.pr_diff]
+pr_merged_at = "2021-05-10T15:33:18Z"
+diff_format = "unified"
+context_files = [
+    "CHANGELOG.md",
+    "medspacy/common/util.py",
+    "resources/context_rules.json",
+    "resources/section_patterns.json",
+    "tests/section_detection/test_sectionizer.py",
+]
+
+[metadata.repo2env.reward_calibration]
+baseline_reward = 0.0
+loc_changed = 153
+difficulty = "large"
+
+[metadata.repo2env.evaluation]
+schema_version = "1"
+status = "unverified"
+stage = "generation"
+reason_codes = [
+    "validation_not_run",
+]
+detail = "Generated task; validation has not been established."
+provenance = "unknown"
+evidence = []
+
+[metadata.repo2env.reproducibility]
+mode = "local_only"
+image_ref = "python:3.12-slim"
+image_tag = "python:3.12-slim"
+image_visibility = "private"
+
+[agent]
+timeout_sec = 1800.0
+
+[verifier]
+timeout_sec = 300.0

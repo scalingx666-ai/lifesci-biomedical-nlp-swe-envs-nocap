@@ -1,0 +1,13 @@
+diff --git a/setup.py b/setup.py
+index a2cc30f9..298f9147 100644
+--- a/setup.py
++++ b/setup.py
+@@ -62,7 +62,7 @@ def get_version():
+     author="medSpaCy",
+     packages=find_packages(),
+     install_requires=[
+-        "spacy>=3.4.1",
++        "spacy>=3.4.1,<4.0.0",
+         "PyRuSH>=1.0.8",
+         "pysbd==0.3.4",
+         "jsonschema",

@@ -1,0 +1,83 @@
+diff --git a/medspacy/context/context_rule.py b/medspacy/context/context_rule.py
+index dc9eab46..f7b34ba3 100644
+--- a/medspacy/context/context_rule.py
++++ b/medspacy/context/context_rule.py
+@@ -204,7 +204,7 @@ def from_dict(cls, rule_dict) -> ConTextRule:
+         rule = ConTextRule(**rule_dict)
+         return rule
+ 
+-    def to_dict(self) -> Dict[str, str]:
++    def to_dict(self):
+         """
+         Converts ConTextItems to a python dictionary. Used when writing context rules to a json file.
+ 
+@@ -214,10 +214,26 @@ def to_dict(self) -> Dict[str, str]:
+         rule_dict = {}
+         for key in self._ALLOWED_KEYS:
+             value = self.__dict__.get(key)
++            if isinstance(value, set):
++                value = list(value)
+             if value is not None:
+                 rule_dict[key] = value
+         return rule_dict
+ 
++    @classmethod
++    def to_json(cls, context_rules: List[ConTextRule], filepath: str):
++        """Writes ConTextItems to a json file.
++
++            Args:
++            context_rules: a list of ContextRules that will be written to a file.
++            filepath: the .json file to contain modifier rules
++        """
++        import json
++
++        data = {"context_rules": [rule.to_dict() for rule in context_rules]}
++        with open(filepath, "w") as file:
++            json.dump(data, file, indent=4)
++
+     def __repr__(self):
+         return (
+             f"ConTextRule(literal='{self.literal}', category='{self.category}', pattern={self.pattern}, "
+diff --git a/tests/context/test_context_rule.py b/tests/context/test_context_rule.py
+index 59609b18..c874ca60 100644
+--- a/tests/context/test_context_rule.py
++++ b/tests/context/test_context_rule.py
+@@ -95,6 +95,38 @@ def test_custom_terminate(self):
+         )
+         assert item.terminated_by == {"POSITIVE_EXISTENCE"}
+ 
++    def test_to_json(self):
++       import json, os
++
++       dname = os.path.join(tmpdirname.name, "test_modifiers.json")
++
++       item_data = [
++           {
++               "literal": "are ruled out",
++               "category": "DEFINITE_NEGATED_EXISTENCE",
++               "pattern": None,
++               "direction": "backward",
++           },
++           {
++               "literal": "is negative",
++               "category": "DEFINITE_NEGATED_EXISTENCE",
++               "pattern": [{"LEMMA": "be"}, {"LOWER": "negative"}],
++               "direction": "backward",
++               "allowed_types": ["A_TYPE"],
++           },
++        ]
++
++       rules = [ConTextRule.from_dict(d) for d in item_data]
++       ConTextRule.to_json(rules, dname)
++
++       with open(dname) as f:
++           data = json.load(f)
++       assert "context_rules" in data
++       assert len(data["context_rules"]) == 2
++       rule_dict = data["context_rules"][0]
++       assert set(rule_dict.keys()) == {'literal', 'category', 'direction'}
++       rule_dict = data["context_rules"][1]
++       assert set(rule_dict.keys()) == {'literal', 'pattern', 'category', 'direction', 'allowed_types'}
+ 
+ @pytest.fixture
+ def from_json_file():

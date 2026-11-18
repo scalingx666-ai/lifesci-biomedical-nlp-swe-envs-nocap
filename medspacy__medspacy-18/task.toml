@@ -1,0 +1,63 @@
+version = "1.0"
+
+[task]
+name = "default/medspacy__medspacy-18"
+description = "Widgets"
+
+[metadata]
+difficulty = "large"
+category = "bugfix"
+keywords = [
+    "medspacy",
+    "pr_diff",
+]
+
+[metadata.repo2env]
+pipeline = "pr_diff"
+pipeline_version = "0.3.0"
+repo = "medspacy/medspacy"
+ref = "f8624cccabdce2b7fd3ba8175d374bf0af7f218f"
+reference = "https://github.com/medspacy/medspacy/pull/18"
+source_access = "auto"
+built_at = "2026-11-18T03:47:15.442309+00:00"
+reward_kinds = [
+    "diff_similarity",
+]
+spec_version = "0.2.0"
+content_hash = "sha256:49714d5ed7b9f79c269823faea2000a8fa9d29bd05180a49f3b41944fa2a8820"
+
+[metadata.repo2env.pr_diff]
+pr_merged_at = "2020-10-31T14:50:29Z"
+diff_format = "unified"
+context_files = [
+    "medspacy/visualization.py",
+    "notebooks/7-visualizers.ipynb",
+]
+
+[metadata.repo2env.reward_calibration]
+baseline_reward = 0.0
+loc_changed = 665
+difficulty = "large"
+
+[metadata.repo2env.evaluation]
+schema_version = "1"
+status = "unverified"
+stage = "generation"
+reason_codes = [
+    "validation_not_run",
+]
+detail = "Generated task; validation has not been established."
+provenance = "unknown"
+evidence = []
+
+[metadata.repo2env.reproducibility]
+mode = "local_only"
+image_ref = "python:3.12-slim"
+image_tag = "python:3.12-slim"
+image_visibility = "private"
+
+[agent]
+timeout_sec = 1800.0
+
+[verifier]
+timeout_sec = 300.0

@@ -1,0 +1,528 @@
+diff --git a/notebooks/03-Information-Extraction.ipynb b/notebooks/03-Information-Extraction.ipynb
+index 976dea29..f8fc730e 100644
+--- a/notebooks/03-Information-Extraction.ipynb
++++ b/notebooks/03-Information-Extraction.ipynb
+@@ -2,12 +2,16 @@
+  "cells": [
+   {
+    "cell_type": "code",
+-   "execution_count": 1,
+-   "metadata": {},
+-   "outputs": [],
++   "metadata": {
++    "jupyter": {
++     "is_executing": true
++    }
++   },
+    "source": [
+     "import sys"
+-   ]
++   ],
++   "outputs": [],
++   "execution_count": null
+   },
+   {
+    "cell_type": "code",
+diff --git a/notebooks/benchmark_scaling/benchmark_multiprocess_vs_single_process.ipynb b/notebooks/benchmark_scaling/benchmark_multiprocess_vs_single_process.ipynb
+new file mode 100644
+index 00000000..1b2da7e0
+--- /dev/null
++++ b/notebooks/benchmark_scaling/benchmark_multiprocess_vs_single_process.ipynb
+@@ -0,0 +1,172 @@
++{
++ "cells": [
++  {
++   "metadata": {},
++   "cell_type": "markdown",
++   "source": "[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/medspacy/medspacy/blob/simple_scale/notebooks/benchmark_scaling/benchmark_multiprocess_vs_single_process.ipynb)\n",
++   "id": "1672f8456b45bb83"
++  },
++  {
++   "metadata": {},
++   "cell_type": "code",
++   "outputs": [],
++   "execution_count": null,
++   "source": "!pip install medspacy",
++   "id": "4b7b598fbfb00636"
++  },
++  {
++   "cell_type": "code",
++   "execution_count": null,
++   "id": "initial_id",
++   "metadata": {
++    "collapsed": true
++   },
++   "outputs": [],
++   "source": [
++    "# Cell 1: Setup and Imports\n",
++    "import pandas as pd\n",
++    "import multiprocessing as mp\n",
++    "import medspacy\n",
++    "from medspacy.ner import TargetRule\n",
++    "import time\n",
++    "import os\n",
++    "# Cell 6: Benchmarking and Comparison\n",
++    "import matplotlib.pyplot as plt\n"
++   ]
++  },
++  {
++   "metadata": {},
++   "cell_type": "code",
++   "outputs": [],
++   "execution_count": null,
++   "source": [
++    "\n",
++    "# Create a sample DataFrame\n",
++    "data = [\n",
++    "    'Patient shows symptoms of flu and other complications.',\n",
++    "    'Diagnosis indicates pneumonia.',\n",
++    "    'Follow-up required for diabetes management.',\n",
++    "    'Patient is recovering well, but needs to keep taking beta blockers for hypertension.'\n",
++    "] * 10000\n",
++    "df = pd.DataFrame({'text': data})\n",
++    "\n",
++    "# Cell 2: Define Target Rules and NLP Pipeline\n",
++    "target_rules = [\n",
++    "    TargetRule(literal=\"flu\", category=\"PROBLEM\"),\n",
++    "    TargetRule(\"pneumonia\", \"PROBLEM\"),\n",
++    "    TargetRule(\"hemicolectomy\", \"TREATMENT\"),\n",
++    "    TargetRule(\"beta blockers\", \"TREATMENT\"),\n",
++    "    TargetRule(\"hypertension\", \"PROBLEM\"),\n",
++    "    TargetRule(\"diabetes\", \"PROBLEM\"),\n",
++    "]\n",
++    "\n",
++    "\n",
++    "def create_nlp():\n",
++    "    nlp = medspacy.load()\n",
++    "    target_matcher = nlp.get_pipe(\"medspacy_target_matcher\")\n",
++    "    target_matcher.result_type = 'group'\n",
++    "    target_matcher.add(target_rules)\n",
++    "    return nlp\n",
++    "\n",
++    "\n",
++    "# Cell 3: Process Text Function\n",
++    "def process_text(text):\n",
++    "    print(f\"Process ID: {os.getpid()} | Processing text: {text}\")\n",
++    "    nlp = create_nlp()\n",
++    "    doc = nlp(text)\n",
++    "    return doc\n",
++    "\n",
++    "\n",
++    "# Cell 4: Single Process Execution\n",
++    "def process_dataframe_single_process(df):\n",
++    "    results = [process_text(text) for text in df['text']]\n",
++    "    return results\n",
++    "\n",
++    "\n",
++    "# Cell 5: Multiprocessing Execution\n",
++    "def process_dataframe_multiprocess(df, num_processes):\n",
++    "    with mp.Pool(num_processes) as pool:\n",
++    "        results = pool.map(process_text, df['text'])\n",
++    "    return results\n"
++   ],
++   "id": "37803407fd687b3f"
++  },
++  {
++   "metadata": {},
++   "cell_type": "code",
++   "outputs": [],
++   "execution_count": null,
++   "source": [
++    "\n",
++    "\n",
++    "start_time = time.time()\n",
++    "single_process_results = process_dataframe_single_process(df)\n",
++    "single_process_duration = time.time() - start_time\n",
++    "print(f\"Single process time: {single_process_duration:.2f} seconds\")\n"
++   ],
++   "id": "efad2bb2e473c4bd"
++  },
++  {
++   "metadata": {},
++   "cell_type": "code",
++   "outputs": [],
++   "execution_count": null,
++   "source": [
++    "\n",
++    "\n",
++    "num_processes_list = [2, 4, 8]\n",
++    "multiprocess_durations = []\n",
++    "\n",
++    "for num_processes in num_processes_list:\n",
++    "    start_time = time.time()\n",
++    "    multiprocess_results = process_dataframe_multiprocess(df, num_processes)\n",
++    "    duration = time.time() - start_time\n",
++    "    multiprocess_durations.append((num_processes, duration))\n",
++    "    print(f\"Multiprocess ({num_processes} processes) time: {duration:.2f} seconds\")"
++   ],
++   "id": "3d5bcba55492a3ae"
++  },
++  {
++   "metadata": {},
++   "cell_type": "code",
++   "outputs": [],
++   "execution_count": null,
++   "source": [
++    "\n",
++    "# Prepare data for visualization\n",
++    "process_counts = [1] + num_processes_list\n",
++    "durations = [single_process_duration] + [duration for num_processes, duration in multiprocess_durations]\n",
++    "\n",
++    "plt.figure(figsize=(10, 6))\n",
++    "plt.plot(process_counts, durations, marker='o')\n",
++    "plt.xlabel('Number of Processes')\n",
++    "plt.ylabel('Time (seconds)')\n",
++    "plt.title('Single Process vs Multiprocessing Execution Time')\n",
++    "plt.grid(True)\n",
++    "plt.show()"
++   ],
++   "id": "c709645eea903670"
++  }
++ ],
++ "metadata": {
++  "kernelspec": {
++   "display_name": "Python 3",
++   "language": "python",
++   "name": "python3"
++  },
++  "language_info": {
++   "codemirror_mode": {
++    "name": "ipython",
++    "version": 2
++   },
++   "file_extension": ".py",
++   "mimetype": "text/x-python",
++   "name": "python",
++   "nbconvert_exporter": "python",
++   "pygments_lexer": "ipython2",
++   "version": "2.7.6"
++  }
++ },
++ "nbformat": 4,
++ "nbformat_minor": 5
++}
+diff --git a/notebooks/benchmark_scaling/benchmark_multithread.ipynb b/notebooks/benchmark_scaling/benchmark_multithread.ipynb
+new file mode 100644
+index 00000000..b8cbb4d7
+--- /dev/null
++++ b/notebooks/benchmark_scaling/benchmark_multithread.ipynb
+@@ -0,0 +1,164 @@
++{
++ "cells": [
++  {
++   "metadata": {},
++   "cell_type": "markdown",
++   "source": "[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/medspacy/medspacy/blob/simple_scale/notebooks/benchmark_scaling/benchmark_multithread.ipynb)\n",
++   "id": "9984ce6373811de"
++  },
++  {
++   "metadata": {},
++   "cell_type": "code",
++   "outputs": [],
++   "execution_count": null,
++   "source": "!pip install medspacy",
++   "id": "19079a48574c0f72"
++  },
++  {
++   "cell_type": "code",
++   "execution_count": null,
++   "id": "initial_id",
++   "metadata": {
++    "collapsed": true
++   },
++   "outputs": [],
++   "source": [
++    "\n",
++    "import pandas as pd\n",
++    "import threading\n",
++    "from queue import Queue\n",
++    "import medspacy\n",
++    "from medspacy.ner import TargetRule\n",
++    "import time\n"
++   ]
++  },
++  {
++   "metadata": {},
++   "cell_type": "code",
++   "outputs": [],
++   "execution_count": null,
++   "source": [
++    "\n",
++    "# Create a larger sample DataFrame for benchmarking\n",
++    "data = ['Patient shows symptoms of flu and other complications.',\n",
++    "        'Diagnosis indicates pneumonia.',\n",
++    "        'Follow-up required for diabetes management.',\n",
++    "        'Patient is recovering well, but needs to keep taking beta blockers for hypertension.'] * 1000  # Multiply to increase size\n",
++    "df = pd.DataFrame({'text': data})\n",
++    "\n",
++    "\n",
++    "# Initialize MedSpaCy pipeline and add target rules\n",
++    "def setup_nlp():\n",
++    "    nlp = medspacy.load()\n",
++    "    target_matcher = nlp.get_pipe(\"medspacy_target_matcher\")\n",
++    "    target_rules = [\n",
++    "        TargetRule(literal=\"flu\", category=\"PROBLEM\"),\n",
++    "        TargetRule(\"pneumonia\", \"PROBLEM\"),\n",
++    "        TargetRule(\"hemicolectomy\", \"TREATMENT\"),\n",
++    "        TargetRule(\"beta blockers\", \"TREATMENT\"),\n",
++    "        TargetRule(\"hypertension\", \"PROBLEM\"),\n",
++    "        TargetRule(\"diabetes\", \"PROBLEM\"),\n",
++    "    ]\n",
++    "    target_matcher.add(target_rules)\n",
++    "    return nlp\n",
++    "\n",
++    "\n",
++    "# Shared instance of NLP for the single instance benchmark\n",
++    "single_nlp = setup_nlp()\n",
++    "\n",
++    "\n",
++    "# Function to process using a single nlp instance\n",
++    "def process_dataframe_single(df):\n",
++    "    results = []\n",
++    "    for text in df['text']:\n",
++    "        doc = single_nlp(text)\n",
++    "        results.append(doc)\n",
++    "    return results\n",
++    "\n",
++    "\n",
++    "# Function to process text using MedSpaCy in multithread\n",
++    "def process_text_multithread(text, output_queue, nlp_instance):\n",
++    "    doc = nlp_instance(text)\n",
++    "    output_queue.put(doc)\n",
++    "\n",
++    "\n",
++    "# Function to process DataFrame with multithreading\n",
++    "def process_dataframe_multithread(df, num_threads):\n",
++    "    output_queue = Queue()\n",
++    "    threads = []\n",
++    "    nlp_pool = [setup_nlp() for _ in range(num_threads)]\n",
++    "\n",
++    "    def worker(texts, nlp):\n",
++    "        for text in texts:\n",
++    "            process_text_multithread(text, output_queue, nlp)\n",
++    "\n",
++    "    # Split the texts among the threads\n",
++    "    for i in range(num_threads):\n",
++    "        thread_texts = df['text'][i::num_threads]\n",
++    "        thread = threading.Thread(target=worker, args=(thread_texts, nlp_pool[i]))\n",
++    "        threads.append(thread)\n",
++    "        thread.start()\n",
++    "\n",
++    "    for thread in threads:\n",
++    "        thread.join()\n",
++    "\n",
++    "    results = []\n",
++    "    while not output_queue.empty():\n",
++    "        results.append(output_queue.get())\n",
++    "\n",
++    "    return results"
++   ],
++   "id": "fa421c68cb68fa67"
++  },
++  {
++   "metadata": {},
++   "cell_type": "code",
++   "outputs": [],
++   "execution_count": null,
++   "source": [
++    "start_time = time.time()\n",
++    "single_results = process_dataframe_single(dataframe)\n",
++    "single_duration = time.time() - start_time\n",
++    "print(f\"Single instance processing time: {single_duration:.2f} seconds\")\n",
++    "\n"
++   ],
++   "id": "c5f398e5b959acc1"
++  },
++  {
++   "metadata": {},
++   "cell_type": "code",
++   "outputs": [],
++   "execution_count": null,
++   "source": [
++    "# Benchmark multithreaded processing\n",
++    "num_threads = 3  # You can change the number of threads to test as needed\n",
++    "start_time = time.time()\n",
++    "multi_results = process_dataframe_multithread(dataframe, num_threads)\n",
++    "multi_duration = time.time() - start_time\n",
++    "print(f\"Multithreaded processing time with {num_threads} threads: {multi_duration:.2f} seconds\")"
++   ],
++   "id": "1c6a313f83608f69"
++  }
++ ],
++ "metadata": {
++  "kernelspec": {
++   "display_name": "Python 3",
++   "language": "python",
++   "name": "python3"
++  },
++  "language_info": {
++   "codemirror_mode": {
++    "name": "ipython",
++    "version": 2
++   },
++   "file_extension": ".py",
++   "mimetype": "text/x-python",
++   "name": "python",
++   "nbconvert_exporter": "python",
++   "pygments_lexer": "ipython2",
++   "version": "2.7.6"
++  }
++ },
++ "nbformat": 4,
++ "nbformat_minor": 5
++}
+diff --git a/tests/scaling/test_multiprocess.py b/tests/scaling/test_multiprocess.py
+new file mode 100644
+index 00000000..647e42f8
+--- /dev/null
++++ b/tests/scaling/test_multiprocess.py
+@@ -0,0 +1,60 @@
++import pandas as pd
++import multiprocessing as mp
++import medspacy
++from medspacy.ner import TargetRule
++import json
++import os
++
++# Create a sample DataFrame
++data = [
++    'Patient shows symptoms of flu and other complications.',
++    'Diagnosis indicates pneumonia.',
++    'Follow-up required for diabetes management.',
++    'Patient is recovering well, but needs to keep taking beta blockers for hypertension.'
++]
++df = pd.DataFrame({'text': data})
++
++# Define target rules for MedSpaCy pipeline
++target_rules = [
++    TargetRule(literal="flu", category="PROBLEM"),
++    TargetRule("pneumonia", "PROBLEM"),
++    TargetRule("hemicolectomy", "TREATMENT"),
++    TargetRule("beta blockers", "TREATMENT"),
++    TargetRule("hypertension", "PROBLEM"),
++    TargetRule("diabetes", "PROBLEM"),
++]
++
++
++# Function to initialize and configure MedSpaCy pipeline
++def create_nlp():
++    nlp = medspacy.load()
++    target_matcher = nlp.get_pipe("medspacy_target_matcher")
++    target_matcher.result_type = 'group'
++    target_matcher.add(target_rules)
++    return nlp
++
++
++# Function to process text using MedSpaCy
++def process_text(text):
++    print(f"Process ID: {os.getpid()} | Processing text: {text}")
++    nlp = create_nlp()
++    doc = nlp(text)
++    return doc
++
++
++# Function to process DataFrame with multiprocessing
++def process_dataframe_multiprocess(df, num_processes):
++    with mp.Pool(num_processes) as pool:
++        results = pool.map(process_text, df['text'])
++
++    return results
++
++
++# Test case
++def test_multiprocess_medspacy_pipeline():
++    num_processes=3
++    results = process_dataframe_multiprocess(df, num_processes)
++    assert len(results) == len(df), "Number of results should match number of input texts."
++    print(f"Test passed: All texts processed successfully with {num_processes} processes.")
++
++
+diff --git a/tests/scaling/test_multithread.py b/tests/scaling/test_multithread.py
+new file mode 100644
+index 00000000..fcad3a5f
+--- /dev/null
++++ b/tests/scaling/test_multithread.py
+@@ -0,0 +1,70 @@
++import pandas as pd
++import threading
++from queue import Queue
++import medspacy
++from medspacy.ner import TargetRule
++# Create a sample DataFrame
++data = [
++    'Patient shows symptoms of flu and other complications.',
++    'Diagnosis indicates pneumonia.',
++    'Follow-up required for diabetes management.',
++    'Patient is recovering well, but needs to keep taking beta blockers for hypertension.'
++]
++df = pd.DataFrame({'text': data})
++
++# Define target rules for MedSpaCy pipeline
++target_rules = [
++    TargetRule(literal="flu", category="PROBLEM"),
++    TargetRule("pneumonia", "PROBLEM"),
++    TargetRule("hemicolectomy", "TREATMENT"),
++    TargetRule("beta blockers", "TREATMENT"),
++    TargetRule("hypertension", "PROBLEM"),
++    TargetRule("diabetes", "PROBLEM"),
++]
++
++
++# Function to initialize and configure MedSpaCy pipeline
++def create_nlp():
++    nlp = medspacy.load()
++    target_matcher = nlp.get_pipe("medspacy_target_matcher")
++    target_matcher.add(target_rules)
++    return nlp
++
++
++# Function to process text using MedSpaCy
++def process_text(text, output_queue):
++    print(f'Starting processing for text: "{text}"')
++    nlp = create_nlp()
++    doc = nlp(text)
++    output_queue.put(doc)
++
++
++# Function to process DataFrame with multithreading
++def process_dataframe_multithread(df, num_threads):
++    output_queue = Queue()
++    semaphore = threading.Semaphore(num_threads)
++    threads = []
++
++    for text in df['text']:
++        thread = threading.Thread(target=process_text, args=(text, output_queue))
++        threads.append(thread)
++        thread.start()
++
++    for thread in threads:
++        thread.join()
++
++    results = []
++    while not output_queue.empty():
++        results.append(output_queue.get())
++
++    return results
++
++
++# Test case
++def test_multithread_medspacy_pipeline():
++    num_threads=3
++    results = process_dataframe_multithread(df, num_threads)
++    assert len(results) == len(df), "Number of results should match number of input texts."
++    print(f"Test passed: All texts processed successfully with {num_threads} threads.")
++
++
+diff --git a/tests/test_notebooks.py b/tests/test_notebooks.py
+index 3e87d289..0c2ead01 100644
+--- a/tests/test_notebooks.py
++++ b/tests/test_notebooks.py
+@@ -23,7 +23,7 @@ def test_execute_example_notebooks(self):
+             assert len(files) > 0, f"No files found in {notebook_path}"
+ 
+             for file in files:
+-                if file.endswith(".ipynb"):
++                if file.endswith(".ipynb") and not file.startswith('benchmark'):
+ 
+                     # Skip this one since it has some large dependencies and downloads
+                     if "using-pretrained-models" in file.lower():

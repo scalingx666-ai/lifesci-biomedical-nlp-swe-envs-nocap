@@ -1,0 +1,324 @@
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index ef0e855d..139924f9 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -1,3 +1,15 @@
++# Version 0.1.0.1
++This release includes a new subpackage `medspacy.io` which includes utilities for converting docs into structured data which can then be written back to a relational database.
++## medspacy.io
++- `DocConsumer`: A pipeline component which extracts structured data from a doc and stores it in a dictionary which can be accessed through `doc._.get_data()`. Docs processed by `DocConsumer` can then be written to a database or transformed into a pandas database. The following types of data can be extracted from a doc:
++    - **"ent"**: The text, label, character offsets, and custom attributes from entities in `doc.ents`: `[("pneumonia", "CONDITION", 5, 15, ...), ...]`
++    - **"section"**: Extract the sections of a note: `[("past_medical_history", "PMH: The patient has a hx of..." ...), ...]`
++    - **"context"**: Extract entity/modifier pairs extracted by ConText: `[("pneumonia", "no evidence of", "NEGATED_EXISTENCE", ...)]`
++    - **"doc"**: Extract the doc text and any specified doc attributes
++- `DbConnect` / `DbReader` / `DbWriter`: Utilities for connecting to a database using either sqlite3 or pyodbc, loading texts, and writing back docs processed by `DocConsumer`
++- `Pipeline`: A single class which wraps up the `DbReader` and `DbWriter` for processing and saving a series of texts
++- `doc._.to_dataframe()`: Convert a doc processed by `DocConsumer` to a pandas DataFrame
++
+ # Version 0.1.0.0
+ This new release includes a lot of new functionality and improvements such as more consistent renaming. 
+ ## Summary
+diff --git a/medspacy/common/util.py b/medspacy/common/util.py
+index 79a0a54c..3cb041e8 100644
+--- a/medspacy/common/util.py
++++ b/medspacy/common/util.py
+@@ -1,7 +1,7 @@
+ """Module for utility functions contained by multiple components of medspaCy."""
+ import re
+ 
+-def span_contains(span, target, regex=True, case_insensitive=False):
++def span_contains(span, target, regex=True, case_insensitive=True):
+     """Return True if a Span object contains a target phrase.
+     Case insensitive.
+     span: A spaCy Span, such as an entity in doc.ents
+diff --git a/resources/context_rules.json b/resources/context_rules.json
+index da50f37f..37d4b07f 100644
+--- a/resources/context_rules.json
++++ b/resources/context_rules.json
+@@ -1370,6 +1370,18 @@
+       "literal": "worried about",
+       "pattern": null,
+       "direction": "FORWARD"
++    },
++    {
++      "category": "NEGATED_EXISTENCE",
++      "literal": ": none",
++      "pattern": null,
++      "direction": "BACKWARD"
++    },
++    {
++      "category": "NEGATED_EXISTENCE",
++      "literal": ": no",
++      "pattern": null,
++      "direction": "BACKWARD"
+     }
+   ]
+ }
+diff --git a/resources/section_patterns.json b/resources/section_patterns.json
+index 04d33cba..d2c751c3 100644
+--- a/resources/section_patterns.json
++++ b/resources/section_patterns.json
+@@ -16,6 +16,10 @@
+       "literal": "ALLERGIES:",
+       "category": "allergies"
+     },
++    {
++      "literal": "Allergies",
++      "category": "allergies"
++    },
+     {
+       "literal": "CC:",
+       "category": "chief_complaint"
+@@ -32,6 +36,10 @@
+       "literal": "COMMENTS:",
+       "category": "comments"
+     },
++    {
++      "literal": "CONSENT:",
++      "category": "patient_education"
++    },
+     {
+       "literal": "ADMISSION DIAGNOSES:",
+       "category": "diagnoses"
+@@ -76,6 +84,34 @@
+       "literal": "HISTORY OF PRESENT ILLNESS:",
+       "category": "history_of_present_illness"
+     },
++    {
++      "literal": "History present illness:",
++      "category": "history_of_present_illness"
++    },
++    {
++      "literal": "HPI:",
++      "category": "history_of_present_illness"
++    },
++    {
++      "literal": "Consulting HPI",
++      "category": "history_of_present_illness"
++    },
++    {
++      "literal": "Consult",
++      "category": "history_of_present_illness"
++    },
++    {
++      "literal": "Clinical Preamble:",
++      "category": "history_of_present_illness"
++    },
++    {
++      "literal": "CLINICAL INDICATION:",
++      "category": "history_of_present_illness"
++    },
++    {
++      "literal": "CLINICAL PREAMBLE:",
++      "category": "history_of_present_illness"
++    },
+     {
+       "literal": "Brief Hospital Course:",
+       "category": "hospital_course"
+@@ -96,6 +132,10 @@
+       "literal": "IMAGING:",
+       "category": "imaging"
+     },
++    {
++      "literal": "TECHNIQUE:",
++      "category": "imaging"
++    },
+     {
+       "literal": "INTERPRETATION:",
+       "category": "imaging"
+@@ -116,6 +156,14 @@
+       "literal": "ADMISSION LABS:",
+       "category": "labs_and_studies"
+     },
++    {
++      "literal": "MICROBIOLOGY SPECIMEN SUMMARY:",
++      "category": "labs_and_studies"
++    },
++    {
++      "literal": "Vital Signs",
++      "category": "labs_and_studies"
++    },
+     {
+       "literal": "Admission Labs:",
+       "category": "labs_and_studies"
+@@ -132,6 +180,18 @@
+       "literal": "FINDINGS:",
+       "category": "labs_and_studies"
+     },
++    {
++      "literal": "On exam:",
++      "category": "labs_and_studies"
++    },
++    {
++      "literal": "Laboratory Tests",
++      "category": "labs_and_studies"
++    },
++    {
++      "literal": "Laboratory Last Values",
++      "category": "labs_and_studies"
++    },
+     {
+       "literal": "Findings:",
+       "category": "labs_and_studies"
+@@ -204,6 +264,10 @@
+       "literal": "MEDICATIONS AT HOME:",
+       "category": "medications"
+     },
++    {
++      "literal": "Home Medication",
++      "category": "medications"
++    },
+     {
+       "literal": "MEDICATIONS LIST:",
+       "category": "medications"
+@@ -248,22 +312,42 @@
+       "literal": "ASSESSMENT:",
+       "category": "observation_and_plan"
+     },
++    {
++      "literal": "Reassesment:",
++      "category": "observation_and_plan"
++    },
+     {
+       "literal": "Assessment/Plan:",
+       "category": "observation_and_plan"
+     },
++    {
++      "literal": "PLAN/DISPOSITION",
++      "category": "observation_and_plan"
++    },
+     {
+       "literal": "Clinical Impression:",
+       "category": "observation_and_plan"
+     },
++    {
++      "literal": "Impression and plan:",
++      "category": "observation_and_plan"
++    },
+     {
+       "literal": "DISCHARGE DIAGNOSES:",
+       "category": "observation_and_plan"
+     },
++    {
++      "literal": "Discharge Plan",
++      "category": "observation_and_plan"
++    },
+     {
+       "literal": "DISCHARGE DIAGNOSIS:",
+       "category": "observation_and_plan"
+     },
++    {
++      "literal": "FINAL ASSESSMENT",
++      "category": "observation_and_plan"
++    },
+     {
+       "literal": "Discharge Condition:",
+       "category": "observation_and_plan"
+@@ -312,6 +396,18 @@
+       "literal": "Current Medical Problems:",
+       "category": "past_medical_history"
+     },
++    {
++      "literal": "HISTORY:",
++      "category": "past_medical_history"
++    },
++    {
++      "literal": "PAST HISTORY",
++      "category": "past_medical_history"
++    },
++    {
++      "literal": "CLINICAL HISTORY:",
++      "category": "past_medical_history"
++    },
+     {
+       "literal": "History of Chronic Illness:",
+       "category": "past_medical_history"
+@@ -328,6 +424,10 @@
+       "literal": "PAST MEDICAL HISTORY:",
+       "category": "past_medical_history"
+     },
++    {
++      "literal": "Past med history:",
++      "category": "past_medical_history"
++    },
+     {
+       "literal": "PAST MEDICAL Hx:",
+       "category": "past_medical_history"
+@@ -392,6 +492,10 @@
+       "literal": "Physical Exam:",
+       "category": "physical_exam"
+     },
++    {
++      "literal": "Physical exam:",
++      "category": "physical_exam"
++    },
+     {
+       "literal": "Active Problem List:",
+       "category": "problem_list"
+@@ -412,6 +516,14 @@
+       "literal": "Problem List:",
+       "category": "problem_list"
+     },
++    {
++      "literal": "PROCEDURE NOTE",
++      "category": "hospital_course"
++    },
++    {
++      "literal": "PROCEDURE AND FINDING:",
++      "category": "hospital_course"
++    },
+     {
+       "literal": "REASON FOR THIS EXAMINATION:",
+       "category": "reason_for_examination"
+@@ -449,4 +561,4 @@
+       "category": "social_history"
+     }
+   ]
+-}
+\ No newline at end of file
++}
+diff --git a/tests/section_detection/test_sectionizer.py b/tests/section_detection/test_sectionizer.py
+index 13f45a17..57b9a9f6 100644
+--- a/tests/section_detection/test_sectionizer.py
++++ b/tests/section_detection/test_sectionizer.py
+@@ -103,7 +103,6 @@ def test_span_attributes(self):
+         assert span._.section_parent is None
+         assert span._.section_rule is rule
+ 
+-
+     # def test_load_default_rules(self):
+     #     sectionizer = Sectionizer(nlp, rules="default")
+     #     assert sectionizer.rules
+@@ -177,7 +176,6 @@ def test_max_scope_none(self):
+         sectionizer(doc)
+         assert doc[-1]._.section_category == "past_medical_history"
+ 
+-
+     def test_max_scope(self):
+         sectionizer = Sectionizer(nlp, rules=None, max_scope=2)
+         sectionizer.add(SectionRule(category="past_medical_history", literal="Past Medical History:"))
+@@ -416,8 +414,14 @@ def test_duplicate_parent_definitions(self):
+             s2 = doc._.sections[1]
+             s3 = doc._.sections[2]
+             s2_2 = doc._.sections[3]
+-            assert len(w) == 1
+-            assert issubclass(w[0].category, RuntimeWarning)
++            # assert len(w) == 1 # this throws errors if warnings occur elsewhere. check that specific warning is in
++            # the buffer instead
++            warning_found = False
++            for warn in w:
++                print("Duplicate" in str(warn.message))
++                if warn.category is RuntimeWarning and "Duplicate section title" in str(warn.message):
++                    warning_found = True
++            assert warning_found
+             assert s1.parent is None
+             assert s2.parent.category == "s1"
+             assert s3.parent is None
+@@ -428,6 +432,7 @@ def test_context_attributes(self):
+         sectionizer.add([SectionRule("Past Medical History:", "past_medical_history")])
+         doc = nlp("Past Medical History: Pneumonia")
+         from spacy.tokens import Span
++
+         doc.ents = (Span(doc, 4, 5),)
+         sectionizer(doc)
+         assert doc.ents[0]._.is_negated is True

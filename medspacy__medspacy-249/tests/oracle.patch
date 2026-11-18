@@ -1,0 +1,98 @@
+diff --git a/medspacy/section_detection/sectionizer.py b/medspacy/section_detection/sectionizer.py
+index 9d43b034..257230b4 100644
+--- a/medspacy/section_detection/sectionizer.py
++++ b/medspacy/section_detection/sectionizer.py
+@@ -66,6 +66,7 @@ def __init__(
+         span_attrs: Union[
+             Literal["default"], Dict[str, Dict[str, Any]], None
+         ] = "default",
++        apply_sentence_boundary: bool = False,
+     ):
+         """
+         Create a new Sectionizer component.
+@@ -101,6 +102,8 @@ def __init__(
+                 "group" will modify attributes of spans in the span group specified by `span_group_name`.
+             span_group_name: The name of the span group used when `input_span_type` is "group". Default is
+                 "medspacy_spans".
++            apply_sentence_boundary: Optionally end sentence before and after section header boundary. This ensures
++                the section header is considered its own sentence.
+         """
+         self.nlp = nlp
+         self.name = name
+@@ -113,6 +116,7 @@ def __init__(
+         self._parent_required = {}
+         self._input_span_type = input_span_type
+         self._span_group_name = span_group_name
++        self._apply_sentence_boundary = apply_sentence_boundary
+ 
+         self.__matcher = MedspacyMatcher(
+             nlp, name=name, phrase_matcher_attr=phrase_matcher_attr
+@@ -419,6 +423,15 @@ def __call__(self, doc: Doc) -> Doc:
+                 # IDEs will warn here about match shape disagreeing w/ type hinting, but this if is only used if
+                 # parent sections were never set, so parent_idx does not exist
+                 (match_id, start, end) = match
++
++            # Make section header its own sentence
++            if self._apply_sentence_boundary:
++                # Section headers should be considered the start of a sentence
++                doc[start].sent_start = True
++                # Text following the header should also be considered a new sentence
++                if end < len(doc):
++                    doc[end].sent_start = True
++
+             rule = self.__matcher.rule_map[self.nlp.vocab.strings[match_id]]
+             category = rule.category
+             # If this is the last match, it should include the rest of the doc
+diff --git a/tests/section_detection/test_sectionizer.py b/tests/section_detection/test_sectionizer.py
+index 7099358a..d78cb908 100644
+--- a/tests/section_detection/test_sectionizer.py
++++ b/tests/section_detection/test_sectionizer.py
+@@ -606,3 +606,48 @@ def test_pipeline_initiate_with_rules(self):
+         sectionizer = nlp2.add_pipe("medspacy_sectionizer", config={"rules": rules})
+         assert "medspacy_sectionizer" in nlp2.pipe_names
+         assert len(sectionizer.rules) > 0
++
++    def test_apply_sentence_boundary(self):
++        nlp2 = medspacy.load()
++        nlp2.add_pipe('medspacy_sectionizer', config={
++            'apply_sentence_boundary': True,
++        })
++        sectionizer = nlp2.get_pipe('medspacy_sectionizer')
++        sectionizer.add([SectionRule("Past Medical History:", "past_medical_history")])
++        doc = nlp2("Start of doc\nPast Medical History: PE")
++
++        token = doc[-1]
++
++        assert token._.section
++        assert len(token._.section_category)
++        assert len(token._.section_title)
++        assert len(token._.section_span)
++        assert len(token._.section_body)
++        assert token._.section_rule
++
++        start = token._.section.title_start
++        end = token._.section.title_end
++        assert doc[start].sent_start != -1
++        assert doc[end].sent_start != -1
++
++    def test_section_at_end_of_doc(self):
++        nlp2 = medspacy.load()
++        #nlp2.remove_pipe('medspacy_sectionizer')
++        nlp2.add_pipe('medspacy_sectionizer', config={
++            'apply_sentence_boundary': True,
++        })
++        sectionizer = nlp2.get_pipe('medspacy_sectionizer')
++        sectionizer.add([SectionRule("Past Medical History:", "past_medical_history")])
++        doc = nlp2("Start of doc\nPast Medical History:")
++
++        token = doc[-1]
++
++        assert token._.section
++        assert len(token._.section_category)
++        assert len(token._.section_title)
++        assert len(token._.section_span)
++        assert not len(token._.section_body)
++        assert token._.section_rule
++
++        start = token._.section.title_start
++        assert doc[start].sent_start == 1

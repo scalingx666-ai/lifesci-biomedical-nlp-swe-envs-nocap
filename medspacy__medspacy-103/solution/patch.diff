@@ -1,0 +1,13 @@
+diff --git a/medspacy/section_detection/sectionizer.py b/medspacy/section_detection/sectionizer.py
+index 20748040..30457b2c 100644
+--- a/medspacy/section_detection/sectionizer.py
++++ b/medspacy/section_detection/sectionizer.py
+@@ -286,7 +286,7 @@ def set_parent_sections(self, sections):
+                                 candidate = None
+ 
+                 # if a parent is required, then add
+-                if identified_parent or not required:
++                if identified_parent is not None or not required:
+                     # if the parent is identified, add section
+                     # if the parent is not required, add section
+                     # if parent is not identified and required, do not add the section

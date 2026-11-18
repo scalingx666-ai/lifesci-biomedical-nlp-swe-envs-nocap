@@ -1,0 +1,56 @@
+diff --git a/README.md b/README.md
+index c84d984d..0e4c4d0d 100644
+--- a/README.md
++++ b/README.md
+@@ -79,6 +79,7 @@ from medspacy.visualization import visualize_ent
+ 
+ # Load medspacy model
+ nlp = medspacy.load()
++print(nlp.pipe_names)
+ 
+ text = """
+ Past Medical History:
+@@ -90,7 +91,7 @@ There is no evidence of pneumonia. Continue warfarin for Afib. Follow up for man
+ """
+ 
+ # Add rules for target concept extraction
+-target_matcher = nlp.get_pipe("target_matcher")
++target_matcher = nlp.get_pipe("medspacy_target_matcher")
+ target_rules = [
+     TargetRule("atrial fibrillation", "PROBLEM"),
+     TargetRule("atrial fibrillation", "PROBLEM", pattern=[{"LOWER": "afib"}]),
+@@ -125,6 +126,16 @@ AMIA Annu. Symp. Proc. 2021 (in Press. (n.d.).
+ http://arxiv.org/abs/2106.07799.
+ ```
+ 
++```
++@inproceedings{eyre2021medspacy,
++      title={Launching into clinical space with medspaCy: a new clinical text processing toolkit in Python}, 
++      author={Hannah Eyre and Alec B Chapman and Kelly S Peterson and Jianlin Shi and Patrick R Alba and Makoto M Jones and Tamara L Box and Scott L DuVall and Olga V Patterson},
++      booktitle = {AMIA Annual Symposium Proceedings 2021},
++      year={(in press, n.d.)},
++      url       = {http://arxiv.org/abs/2106.07799}
++}
++```
++
+ # Made with medSpaCy
+ Here are some links to projects or tutorials which use medSpacy. If you have a project which uses medSpaCy which you'd like to use, let us know!
+ - [VA_COVID-19_NLP_BSV](https://github.com/abchapman93/VA_COVID-19_NLP_BSV): An NLP pipeline for [identifying positive cases of COVID-19](https://aclanthology.org/2020.nlpcovid19-acl.10/) from clinical text. Deployed as part of the Department of Veterans Affairs response to COVID-19
+diff --git a/resources/section_patterns.json b/resources/section_patterns.json
+index d2c751c3..4b607c2a 100644
+--- a/resources/section_patterns.json
++++ b/resources/section_patterns.json
+@@ -10,11 +10,11 @@
+     },
+     {
+       "literal": "ALLERGIC REACTIONS:",
+-      "category": "allergies"
++      "category": "allergy"
+     },
+     {
+       "literal": "ALLERGIES:",
+-      "category": "allergies"
++      "category": "allergy"
+     },
+     {
+       "literal": "Allergies",

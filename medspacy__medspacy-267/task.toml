@@ -1,0 +1,62 @@
+version = "1.0"
+
+[task]
+name = "default/medspacy__medspacy-267"
+description = "Update versions in two places now to satisfy conventions"
+
+[metadata]
+difficulty = "easy"
+category = "bugfix"
+keywords = [
+    "medspacy",
+    "pr_diff",
+]
+
+[metadata.repo2env]
+pipeline = "pr_diff"
+pipeline_version = "0.3.0"
+repo = "medspacy/medspacy"
+ref = "f2c13dd256196cb538d11a41d588a700b92932c4"
+reference = "https://github.com/medspacy/medspacy/pull/267"
+source_access = "auto"
+built_at = "2026-11-18T03:44:16.342028+00:00"
+reward_kinds = [
+    "diff_similarity",
+]
+spec_version = "0.2.0"
+content_hash = "sha256:f87f44fecaeb2db3b7e3b2695f32fdc4c47425b63eef950eed4c1b555072a52d"
+
+[metadata.repo2env.pr_diff]
+pr_merged_at = "2024-01-05T21:53:02Z"
+diff_format = "unified"
+context_files = [
+    "medspacy/_version.py",
+]
+
+[metadata.repo2env.reward_calibration]
+baseline_reward = 0.0
+loc_changed = 4
+difficulty = "trivial"
+
+[metadata.repo2env.evaluation]
+schema_version = "1"
+status = "unverified"
+stage = "generation"
+reason_codes = [
+    "validation_not_run",
+]
+detail = "Generated task; validation has not been established."
+provenance = "unknown"
+evidence = []
+
+[metadata.repo2env.reproducibility]
+mode = "local_only"
+image_ref = "python:3.12-slim"
+image_tag = "python:3.12-slim"
+image_visibility = "private"
+
+[agent]
+timeout_sec = 1800.0
+
+[verifier]
+timeout_sec = 300.0

@@ -9,9 +9,9 @@ Repo2RLEnv pr_diff (v0.9.6), Harbor-format output. Domain: biomedical-nlp.
 | Domain candidates (deduped) | 226 |
 | After active+star+noise filter | 64 |
 | Final target list (cap unlimited) | 64 |
-| Repos with >=1 task | 1 |
-| Repos with 0 tasks | 52 |
-| Total tasks (unlimited (no per-repo cap)) | 13 |
+| Repos with >=1 task | 2 |
+| Repos with 0 tasks | 51 |
+| Total tasks (unlimited (no per-repo cap)) | 83 |
 
 ## Generation
 
@@ -23,7 +23,7 @@ Repo2RLEnv pr_diff (v0.9.6), Harbor-format output. Domain: biomedical-nlp.
 - Overlap with the 3 published cancer editions is allowed (user decision);
   domains are independent selections, not a partition of one repo set.
 
-## Zero-yield repos (informational, 52)
+## Zero-yield repos (informational, 51)
 
 - Anil-matcha/Open-Generative-AI
 - spmallick/learnopencv
@@ -41,7 +41,6 @@ Repo2RLEnv pr_diff (v0.9.6), Harbor-format output. Domain: biomedical-nlp.
 - wuyoscar/Internal-Safety-Collapse
 - LichAmnesia/GPT-Prompt-Hub
 - beita6969/ScienceClaw
-- medspacy/medspacy
 - AgentTeam-TaichuAI/ScienceClaw
 - genomoncology/biomcp
 - ncbi-nlp/BioSentVec

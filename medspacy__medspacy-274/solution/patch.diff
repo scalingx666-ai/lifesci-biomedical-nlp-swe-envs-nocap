@@ -1,0 +1,312 @@
+diff --git a/medspacy/_extensions.py b/medspacy/_extensions.py
+index bbbd3b77..69df06d1 100644
+--- a/medspacy/_extensions.py
++++ b/medspacy/_extensions.py
+@@ -5,7 +5,7 @@
+ 
+ # from .io.doc_consumer import ALLOWED_DATA_TYPES
+ 
+-ALLOWED_DATA_TYPES = ("ents", "section", "context", "doc")
++ALLOWED_DATA_TYPES = ("ents", "group", "section", "context", "doc")
+ 
+ 
+ def set_extensions():
+diff --git a/medspacy/context/context_modifier.py b/medspacy/context/context_modifier.py
+index 076083f4..191724a0 100644
+--- a/medspacy/context/context_modifier.py
++++ b/medspacy/context/context_modifier.py
+@@ -169,6 +169,7 @@ def __set_scope(self, doc: Doc):
+                 and (self._scope_end - self._scope_start) > self.max_scope
+             ):
+                 self._scope_start = self._start - self.max_scope
++        
+         else:  # bidirectional
+             self._scope_start, self._scope_end = (
+                 full_scope_span.start,
+diff --git a/medspacy/context/context_rule.py b/medspacy/context/context_rule.py
+index f7b34ba3..0fb0c05f 100644
+--- a/medspacy/context/context_rule.py
++++ b/medspacy/context/context_rule.py
+@@ -26,7 +26,7 @@ class ConTextRule(BaseRule):
+         "BACKWARD",
+         "BIDIRECTIONAL",
+         "TERMINATE",
+-        "PSEUDO",
++        "PSEUDO"
+     )
+     _ALLOWED_KEYS = {
+         "literal",
+@@ -211,6 +211,7 @@ def to_dict(self):
+         Returns:
+             The dictionary containing the ConTextRule info.
+         """
++
+         rule_dict = {}
+         for key in self._ALLOWED_KEYS:
+             value = self.__dict__.get(key)
+diff --git a/medspacy/io/doc_consumer.py b/medspacy/io/doc_consumer.py
+index 21906b88..1e301a82 100644
+--- a/medspacy/io/doc_consumer.py
++++ b/medspacy/io/doc_consumer.py
+@@ -6,7 +6,7 @@
+ 
+ from medspacy.context import ConTextModifier
+ 
+-ALLOWED_DATA_TYPES = ("ents", "section", "context", "doc")
++ALLOWED_DATA_TYPES = ("ents", "group", "section", "context", "doc")
+ 
+ DEFAULT_ENT_ATTRS = (
+     "text",
+@@ -197,7 +197,7 @@ def __call__(self, doc):
+                     data["ents"][attr].append(val)
+         if "group" in self.dtypes:
+             for span in doc.spans[self._span_group_name]:
+-                for attr in self.dtype_attrs["ents"]:
++                for attr in self.dtype_attrs["group"]:
+                     try:
+                         val = getattr(span, attr)
+                     except AttributeError:
+@@ -227,28 +227,41 @@ def add_context_edge_attributes(
+         span = doc[span_tup[0] : span_tup[1]]
+         scope_tup = modifier.scope_span
+         scope = doc[scope_tup[0] : scope_tup[1]]
+-        if "ent_text" in self.dtype_attrs["context"]:
+-            context_data["ent_text"].append(ent.text)
+-        if "ent_label_" in self.dtype_attrs["context"]:
+-            context_data["ent_label_"].append(ent.label_)
+-        if "ent_start_char" in self.dtype_attrs["context"]:
+-            context_data["ent_start_char"].append(ent.start_char)
+-        if "ent_end_char" in self.dtype_attrs["context"]:
+-            context_data["ent_end_char"].append(ent.end_char)
+-        if "modifier_text" in self.dtype_attrs["context"]:
+-            context_data["modifier_text"].append(span.text)
+-        if "modifier_category" in self.dtype_attrs["context"]:
+-            context_data["modifier_category"].append(modifier.category)
+-        if "modifier_direction" in self.dtype_attrs["context"]:
+-            context_data["modifier_direction"].append(modifier.direction)
+-        if "modifier_start_char" in self.dtype_attrs["context"]:
+-            context_data["modifier_start_char"].append(span.start_char)
+-        if "modifier_end_char" in self.dtype_attrs["context"]:
+-            context_data["modifier_end_char"].append(span.end_char)
+-        if "modifier_scope_start_char" in self.dtype_attrs["context"]:
+-            context_data["modifier_scope_start_char"].append(scope.start_char)
+-        if "modifier_scope_end_char" in self.dtype_attrs["context"]:
+-            context_data["modifier_scope_end_char"].append(scope.end_char)
++        for attr in self.dtype_attrs["context"]:
++            if attr == "ent_text":
++                context_data["ent_text"].append(ent.text)
++            elif attr == "ent_label_":
++                context_data["ent_label_"].append(ent.label_)
++            elif attr == "ent_start_char":
++                context_data["ent_start_char"].append(ent.start_char)
++            elif attr == "ent_end_char":
++                context_data["ent_end_char"].append(ent.end_char)
++            elif attr == "modifier_text":
++                context_data["modifier_text"].append(span.text)
++            elif attr == "modifier_category":
++                context_data["modifier_category"].append(modifier.category)
++            elif attr == "modifier_direction":
++               context_data["modifier_direction"].append(modifier.direction)
++            elif attr == "modifier_start_char":
++                context_data["modifier_start_char"].append(span.start_char)
++            elif attr == "modifier_end_char":
++                context_data["modifier_end_char"].append(span.end_char)
++            elif attr == "modifier_scope_start_char":
++                context_data["modifier_scope_start_char"].append(scope.start_char)
++            elif attr == "modifier_scope_end_char":
++                context_data["modifier_scope_end_char"].append(scope.end_char)
++            else:
++            # if specified attribute is not one of these standard values, check the entity to see if it's an entity value
++                try:
++                    val = getattr(ent, attr)
++                except AttributeError:
++                    try:
++                        val = getattr(ent._, attr)
++                    except AttributeError:
++                        raise ValueError(f"Attributes for dtype 'context' must be either "
++                                         f"a registered custom Span attribute (i.e., Span._.attr) or one of these pre-defined values: "
++                                          f"{ALLOWED_CONTEXT_ATTRS}. \nYou passed in '{attr}'")
++                context_data[f"{attr}"].append(val)
+ 
+     def add_section_attributes(self, section, section_data, doc):
+         # Allow for null sections
+diff --git a/medspacy/target_matcher/target_matcher.py b/medspacy/target_matcher/target_matcher.py
+index d8b80b4b..e8c11153 100644
+--- a/medspacy/target_matcher/target_matcher.py
++++ b/medspacy/target_matcher/target_matcher.py
+@@ -29,6 +29,7 @@ def __init__(
+         phrase_matcher_attr: str = "LOWER",
+         result_type: Union[Literal["ents", "group"], None] = "ents",
+         span_group_name: str = "medspacy_spans",
++        prune: bool = True
+     ):
+         """
+         Creates a new TargetMatcher.
+@@ -51,12 +52,13 @@ def __init__(
+         self.name = name
+         self._result_type = result_type
+         self._span_group_name = span_group_name
++        self._prune = prune
+ 
+         if rules:
+             self.add(TargetRule.from_json(rules))
+ 
+         self.__matcher = MedspacyMatcher(
+-            nlp, name=name, phrase_matcher_attr=phrase_matcher_attr
++            nlp, name=name, phrase_matcher_attr=phrase_matcher_attr, prune=self._prune
+         )
+ 
+     @property
+diff --git a/medspacy/visualization.py b/medspacy/visualization.py
+index c8ee2eee..35f44df3 100644
+--- a/medspacy/visualization.py
++++ b/medspacy/visualization.py
+@@ -10,6 +10,8 @@ def visualize_ent(
+     sections: bool = True,
+     jupyter: bool = True,
+     colors: Dict[str, str] = None,
++    target_span_type: str = "ents",
++    span_group_name: str = "medspacy_spans"
+ ) -> str:
+     """
+     Creates a NER-style visualization for targets and modifiers in Doc.
+@@ -37,7 +39,14 @@ def visualize_ent(
+ 
+     ents_data = []
+ 
+-    for target in doc.ents:
++    if target_span_type == "ents":
++        targets = doc.ents
++    elif target_span_type == "group":
++        targets = doc.spans[span_group_name]
++    else:
++        raise ValueError("Target span type must be either ents or group.")
++
++    for target in targets:
+         ent_data = {
+             "start": target.start_char,
+             "end": target.end_char,
+@@ -155,8 +164,23 @@ def visualize_dep(doc: Doc, jupyter: bool = True) -> str:
+         token_data_mapping[token] = data
+ 
+     # Merge phrases
+-    targets_and_modifiers = [*doc._.context_graph.targets]
+-    targets_and_modifiers += [*doc._.context_graph.modifiers]
++    # targets_and_modifiers = [*doc._.context_graph.targets]
++    existing_tokens = set()
++    targets_and_modifiers = []
++    # Used to prevent duplication of token in targets or modifiers that appear twice due to being in a span group or, appearing twice as a modifier
++    for target_or_modifier in (list(doc._.context_graph.targets) + doc._.context_graph.modifiers):
++        if isinstance (target_or_modifier, Span):
++            span=target_or_modifier
++        else:
++            span=doc[target_or_modifier._start : target_or_modifier._end]
++        already_seen = False 
++        for token in span:
++            if token in existing_tokens:
++                already_seen = True 
++                break 
++        if not already_seen:
++            targets_and_modifiers.append(target_or_modifier)
++            existing_tokens.update({token for token in span}) 
+ 
+     for obj in targets_and_modifiers:
+         if isinstance(obj, Span):
+@@ -206,6 +230,7 @@ def visualize_dep(doc: Doc, jupyter: bool = True) -> str:
+         #     other_data["index"] -= len(span) - 1
+ 
+     dep_data = {"words": token_data, "arcs": []}
++    
+     # Gather the edges between targets and modifiers
+     for target, modifier in doc._.context_graph.edges:
+         target_data = token_data_mapping[target[0]]
+@@ -220,11 +245,12 @@ def visualize_dep(doc: Doc, jupyter: bool = True) -> str:
+                 else "left",
+             }
+         )
++    
+     return displacy.render(dep_data, manual=True, jupyter=jupyter)
+ 
+ 
+ class MedspaCyVisualizerWidget:
+-    def __init__(self, docs):
++    def __init__(self, docs, target_span_type: str = "ents", span_group_name: str = "medspacy_spans"):
+ 
+         """Create an IPython Widget Box displaying medspaCy's visualizers.
+         The widget allows selecting visualization style ("Ent", "Dep", or "Both")
+@@ -241,6 +267,8 @@ def __init__(self, docs):
+         import ipywidgets as widgets
+ 
+         self.docs = docs
++        self.target_span_type = target_span_type 
++        self.span_group_name = span_group_name
+         self.slider = widgets.IntSlider(
+             value=0,
+             min=0,
+@@ -294,7 +322,7 @@ def _visualize_doc(self):
+         if self.radio.value.lower() in ("dep", "both"):
+             visualize_dep(doc)
+         if self.radio.value.lower() in ("ent", "both"):
+-            visualize_ent(doc)
++            visualize_ent(doc, target_span_type=self.target_span_type, span_group_name=self.span_group_name)
+ 
+     def _on_click_next(self, b):
+         if self.slider.value < len(self.docs) - 1:
+diff --git a/pyproject.toml b/pyproject.toml
+index c2dcc375..3b8d81b0 100644
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -8,6 +8,7 @@ dynamic = ["version"]
+ authors = [{name = "medSpaCy"}]
+ description = "Library for clinical NLP with spaCy."
+ requires-python = ">=3.8"
++readme = "README.md"
+ license = { file = "LICENSE" }
+ classifiers = [
+     "License :: OSI Approved :: MIT License",
+diff --git a/tests/context/test_context_modifier.py b/tests/context/test_context_modifier.py
+index 09c22dcb..1ecd6f4e 100644
+--- a/tests/context/test_context_modifier.py
++++ b/tests/context/test_context_modifier.py
+@@ -482,4 +482,4 @@ def test_custom_attrs(self):
+         assert doc.ents[0]._.is_family_history is False
+ 
+         assert doc.ents[1]._.is_experienced is False
+-        assert doc.ents[1]._.is_family_history is True
++        assert doc.ents[1]._.is_family_history is True
+\ No newline at end of file
+diff --git a/tests/io/test_doc_consumer.py b/tests/io/test_doc_consumer.py
+index 1421c94b..b4a0e5b0 100644
+--- a/tests/io/test_doc_consumer.py
++++ b/tests/io/test_doc_consumer.py
+@@ -146,8 +146,9 @@ def test_ten_concepts(self):
+ 
+     def test_get_default_attrs(self):
+         attrs = DocConsumer.get_default_attrs()
+-        assert set(attrs.keys()) == {"ents", "context", "section", "doc"}
++        assert set(attrs.keys()) == {"ents", "group", "context", "section", "doc"}
+         assert set(attrs["ents"]) == set(DEFAULT_ENT_ATTRS)
++        assert set(attrs["group"]) == set(DEFAULT_ENT_ATTRS)
+         assert set(attrs["section"]) == set(ALLOWED_SECTION_ATTRS)
+         assert set(attrs["context"]) == set(ALLOWED_CONTEXT_ATTRS)
+         assert set(attrs["doc"]) == set(DEFAULT_DOC_ATTRS)
+@@ -157,3 +158,18 @@ def test_get_data_attrs_not_none(self):
+         doc = consumer(simple_doc)
+         data = doc._.get_data("ents", attrs=["label_", "is_negated"])
+         assert set(data.keys()) == {"label_", "is_negated"}
++
++    def test_context_data_custom_ent_attribute(self):
++        """Test that we can add a custom Span._ attribute to the ConText data output."""
++        consumer = DocConsumer(nlp, dtypes=("context",),
++                               dtype_attrs={"context": ("modifier_text", "modifier_category", "my_custom_attr")})
++        from spacy.tokens import Span; Span.set_extension("my_custom_attr", force=True, default="")
++        doc = nlp(context_text)
++        assert len(doc._.context_graph.edges) == 1
++        doc.ents[0]._.my_custom_attr = "Hello!"
++        consumer(doc)
++        doc_data = doc._.data
++        assert isinstance(doc_data, dict)
++        assert doc_data.keys() == {"context"}
++        assert set(doc_data["context"].keys()) == {"modifier_text", "modifier_category", "my_custom_attr"}
++        assert doc_data["context"]["my_custom_attr"][0] == "Hello!"
+\ No newline at end of file

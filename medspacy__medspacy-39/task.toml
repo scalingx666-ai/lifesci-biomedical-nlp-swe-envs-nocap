@@ -1,0 +1,68 @@
+version = "1.0"
+
+[task]
+name = "default/medspacy__medspacy-39"
+description = "Improved documentation of QuickUMLS in notebook"
+
+[metadata]
+difficulty = "large"
+category = "bugfix"
+keywords = [
+    "medspacy",
+    "pr_diff",
+]
+
+[metadata.repo2env]
+pipeline = "pr_diff"
+pipeline_version = "0.3.0"
+repo = "medspacy/medspacy"
+ref = "2fdb93d8cb0936da421e008af4ebf05f111350f0"
+reference = "https://github.com/medspacy/medspacy/pull/39"
+source_access = "auto"
+built_at = "2026-11-18T03:47:01.822272+00:00"
+reward_kinds = [
+    "diff_similarity",
+]
+spec_version = "0.2.0"
+content_hash = "sha256:34d9a135714fbda6d1c19e85e73d79c5e927576f7e2ce5f9e841de6864a9f7c0"
+
+[metadata.repo2env.pr_diff]
+pr_merged_at = "2021-01-11T17:52:23Z"
+diff_format = "unified"
+context_files = [
+    "README.md",
+    "medspacy/section_detection/section.py",
+    "medspacy/section_detection/section_rule.py",
+    "medspacy/section_detection/sectionizer.py",
+    "notebooks/11-QuickUMLS_Extraction.ipynb",
+    "tests/section_detection/test_section_rule.py",
+    "tests/section_detection/test_sectionizer.py",
+]
+
+[metadata.repo2env.reward_calibration]
+baseline_reward = 0.0
+loc_changed = 744
+difficulty = "large"
+
+[metadata.repo2env.evaluation]
+schema_version = "1"
+status = "unverified"
+stage = "generation"
+reason_codes = [
+    "validation_not_run",
+]
+detail = "Generated task; validation has not been established."
+provenance = "unknown"
+evidence = []
+
+[metadata.repo2env.reproducibility]
+mode = "local_only"
+image_ref = "python:3.12-slim"
+image_tag = "python:3.12-slim"
+image_visibility = "private"
+
+[agent]
+timeout_sec = 1800.0
+
+[verifier]
+timeout_sec = 300.0

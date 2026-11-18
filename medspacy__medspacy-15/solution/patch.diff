@@ -1,0 +1,100 @@
+diff --git a/.gitignore b/.gitignore
+index b6e47617..07458e95 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -127,3 +127,4 @@ dmypy.json
+ 
+ # Pyre type checker
+ .pyre/
++/.idea/*
+diff --git a/medspacy/custom_tokenizer.py b/medspacy/custom_tokenizer.py
+index ba520b49..40aa9c00 100644
+--- a/medspacy/custom_tokenizer.py
++++ b/medspacy/custom_tokenizer.py
+@@ -1,5 +1,8 @@
+ from spacy.symbols import IS_PUNCT
+ 
++import re
++import string
++
+ from spacy.tokenizer import Tokenizer
+ from spacy.util import compile_prefix_regex, compile_infix_regex, compile_suffix_regex
+ 
+@@ -16,7 +19,17 @@ def create_medspacy_tokenizer(nlp):
+     """
+     
+     # augment the defaults
+-    infixes = nlp.Defaults.infixes + (r'''[^a-z0-9]''',)
++    # this is not quite correct.  We do not want to break on uppercase and we do not
++    # want to break on all punctuation (periods)
++    # infixes = nlp.Defaults.infixes + (r'''[^a-z0-9]''',)
++    # escape all the punctuation we want to allow to allow to break up tokens
++
++    # get all python punctuation
++    punctuation_chars = string.punctuation
++    # remove periods so that we do not break up '1.5 mg' into '1 . 5 mg'
++    punctuation_chars = punctuation_chars.replace('.', '')
++
++    infixes = nlp.Defaults.infixes + (r'''[{}]'''.format(re.escape(punctuation_chars)),)
+     prefixes = nlp.Defaults.prefixes
+     suffixes = nlp.Defaults.suffixes
+ 
+diff --git a/tests/test_medspacy.py b/tests/test_medspacy.py
+index 27a0702e..cf9e8945 100644
+--- a/tests/test_medspacy.py
++++ b/tests/test_medspacy.py
+@@ -47,9 +47,9 @@ def test_not_load_rules(self):
+ 
+     def test_medspacy_tokenizer(self):
+         default_tokenizer = spacy.blank("en").tokenizer
+-        custom_tokenizer = medspacy.load(enable=[]).tokenizer
++        custom_tokenizer = medspacy.load(enable=['tokenizer']).tokenizer
+ 
+-        text = r'Pt c\o n;v;d h\o chf+cp'
++        text = r'Pt c\o n;v;d h\o chf+cp n/v/d'
+ 
+         default_doc = default_tokenizer(text)
+         medspacy_doc = custom_tokenizer(text)
+@@ -59,4 +59,39 @@ def test_medspacy_tokenizer(self):
+         # Check that some expected token boundries are generated
+         joined_tokens = " ".join([token.text for token in medspacy_doc])
+         assert "c \\ o" in joined_tokens
+-        assert "chf + cp" in joined_tokens
+\ No newline at end of file
++        assert "n / v / d" in joined_tokens
++        assert "chf + cp" in joined_tokens
++
++    def test_medspacy_tokenizer_uppercase(self):
++        custom_tokenizer = medspacy.load(enable=['tokenizer']).tokenizer
++
++        # Issue 13: Ensure that uppercase tokens are not tokenized as each character
++        # https://github.com/medspacy/medspacy/issues/13
++        text = r'DO NOT BREAK ME UP'
++
++        medspacy_doc = custom_tokenizer(text)
++
++        tokens = [token.text for token in medspacy_doc]
++
++        assert len(tokens) == 5
++
++        # Check that some expected token boundries are generated
++        joined_tokens = " ".join(tokens)
++        assert "DO NOT BREAK ME UP" in joined_tokens
++        assert "B R E A K" not in joined_tokens
++
++    def test_medspacy_tokenizer_numerics(self):
++        custom_tokenizer = medspacy.load(enable=['tokenizer']).tokenizer
++
++        text = r'1.5 mg'
++
++        medspacy_doc = custom_tokenizer(text)
++
++        tokens = [token.text for token in medspacy_doc]
++
++        assert len(tokens) == 2
++
++        # Check that some expected token boundries are generated
++        joined_tokens = " ".join(tokens)
++        assert "1.5" in joined_tokens
++        assert "1 . 5" not in joined_tokens
+\ No newline at end of file

@@ -1,0 +1,391 @@
+diff --git a/.github/workflows/manual_test_pip.yml b/.github/workflows/manual_test_pip.yml
+index a26d533a..407c49d4 100644
+--- a/.github/workflows/manual_test_pip.yml
++++ b/.github/workflows/manual_test_pip.yml
+@@ -1,11 +1,17 @@
+ name: manual_test_pip
+ 
+ on:
+-  workflow_dispatch
++  workflow_dispatch:
++    inputs:
++      install_prerelease:
++        description: 'Check this to install the prerelease version of medspacy if available and the version is newer than formal release.'  
++        type: boolean   
++        required: false
++        default: false
+ 
+ jobs:
+ 
+-  test_win_linux_mac:
++  test:
+   
+     # TODO: Do we care if this only runs on allowed branches since we check push/pull_request above?
+     #if: github.ref == 'refs/heads/master' OR github.ref == 'refs/heads/develop'
+@@ -13,28 +19,50 @@ jobs:
+     strategy:
+       matrix:
+         os: [ubuntu-latest, macos-latest, windows-latest]
++        # python-version: [3.8]
+         python-version: [3.8, 3.9, "3.10.x", "3.11.x"]
++        # revised from https://github.com/actions/cache/blob/main/examples.md#python---pip
+     runs-on: ${{ matrix.os }}
+ 
+     steps:
+     - uses: actions/checkout@v3
+-    - name: check clone
++    - name: Git clone repo and remove source code
+       run: |
+         pwd
+         ls
++        # remove cloned source code to ensure test on installed medspacy
+         python -c "import shutil;shutil.rmtree('medspacy')"
+         ls
+ 
+-    - name: Set up Python ${{ matrix.python-version }}  ${{ matrix.os }}
++    - name: Set up pip
+       uses: actions/setup-python@v4
+       with:
+         python-version: ${{ matrix.python-version }}   
+         cache: 'pip'   
+-        cache-dependency-path: 'requirements_piptests.txt'
++        cache-dependency-path: |
++          'requirements/requirements.txt'
++          'requirements/requirements_tests.txt'
+     - run: |
+         python --version
+         pip install --upgrade pip
+-        pip install --use-pep517 -r requirements_piptests.txt
++    
++    
++    - name: Install prereleased medspacy
++      if: ${{ github.event.inputs.install_prerelease == 'true' }} 
++      run: |
++        # use this to avoid install prereleases of dependencies packages
++        pip install medspacy
++        pip uninstall -y medspacy
++        pip install --pre medspacy
++
++    - name: Install formal released medspacy
++      if: ${{ github.event.inputs.install_prerelease == 'false' }}  
++      run: |
++        pip install medspacy
++
++    - name: Install dependencies to run pytest
++      run: |
++        pip install --use-pep517 -r requirements/requirements_tests.txt
+         python -m spacy download de_core_news_sm
+         python -m spacy download en_core_web_sm
+         python -m spacy download en_core_web_md
+@@ -43,3 +71,14 @@ jobs:
+         python -m spacy download pl_core_news_sm
+         python -m spacy download de_core_news_sm
+         python -m spacy download xx_ent_wiki_sm
++
++    - name: print medspacy version
++      run: python -c 'import medspacy; print(medspacy.__version__); print(medspacy.__file__)'
++    
++    - name: Test with pytest
++      # need to run pytest after a clean pip install to 100% replicate the users' environment
++      run: |        
++        # run everything besides the QuickUMLS span group tests...
++        pytest -k "not test_span_groups and not test_overlapping_spans and not test_multiword_span"
++        # now in a separate session we can run the QuickUMLS span group tests...
++        pytest -k "test_span_groups or test_overlapping_spans or test_multiword_span"
+diff --git a/.github/workflows/packaging.yml b/.github/workflows/packaging.yml
+index add278d8..a482c620 100644
+--- a/.github/workflows/packaging.yml
++++ b/.github/workflows/packaging.yml
+@@ -30,4 +30,13 @@ jobs:
+         python -m pip install --upgrade pip
+         pip install build
+     - name: Build package
+-      run: python setup.py sdist
+\ No newline at end of file
++      run: python setup.py sdist
++    - name: Check built
++      run: ls dist
++      
++    - name: 'Upload Artifact'
++      uses: actions/upload-artifact@v3
++      with:
++        name: tar gz file
++        path: dist
++        retention-days: 2
+\ No newline at end of file
+diff --git a/.github/workflows/python-app.yml b/.github/workflows/python-app.yml
+index 396777dd..d3ba24cc 100644
+--- a/.github/workflows/python-app.yml
++++ b/.github/workflows/python-app.yml
+@@ -17,12 +17,12 @@ jobs:
+     strategy:
+       matrix:
+         # removed 3.5 since there appears to be a failure with setuptools
+-        #python-version: [3.6, 3.7, 3.8] # [3.5, 3.6, 3.7, 3.8]
++        #python-version: [3.6, 3.7, 3.9] # [3.5, 3.6, 3.7, 3.9]
+         #os: [ubuntu-latest, macos-latest, windows-2019]
+         include:
+-          - name: "Ubuntu Python 3.8"
++          - name: "Ubuntu Python 3.9"
+             os: ubuntu-latest
+-            python-version: 3.8
++            python-version: 3.9
+             addons:
+               apt:
+                 update: true
+@@ -31,26 +31,31 @@ jobs:
+                   # https://spacy.io/usage#source-ubuntu
+                   - build-essential
+                   - python-dev
+-          - name: "MacOS Python 3.8"
++          - name: "MacOS Python 3.9"
+             os: macos-latest
+-            python-version: 3.8
+-          - name: "Windows Python 3.8"
++            python-version: 3.9
++          - name: "Windows Python 3.9"
+             os: windows-2019
+-            python-version: 3.8
++            python-version: 3.9
+ 
+     steps:
+-    - uses: actions/checkout@v2
++    - uses: actions/checkout@v3
+     - name: Set up Python ${{ matrix.python-version }}
+-      uses: actions/setup-python@v2
++      uses: actions/setup-python@v4
+       with:
+-        python-version: ${{ matrix.python-version }}      
++        python-version: ${{ matrix.python-version }}   
++        cache: 'pip'   
++        cache-dependency-path: |
++          'requirements/requirements.txt'
++          'requirements/requirements_tests.txt'
++               
+     - name: Install dependencies      
+       run: |
+         python --version
+         python -m pip install --upgrade pip        
+         # Install our package to make sure our setup works...
+         pip install -U pip setuptools wheel
+-        python setup.py install
++        pip install -r requirements/requirements.txt
+         # set up all spacy language models that are used in our pytest tests
+         python -m spacy download de_core_news_sm
+         python -m spacy download en_core_web_sm
+@@ -61,14 +66,13 @@ jobs:
+         python -m spacy download de_core_news_sm
+         python -m spacy download xx_ent_wiki_sm
+         # install scispacy model as well to ensure compatibility
+-        pip install https://s3-us-west-2.amazonaws.com/ai2-s2-scispacy/releases/v0.3.0/en_core_sci_sm-0.3.0.tar.gz
+-        pip install flake8 pytest
+         # we want to test execution of jupyter notebooks in pytest as well
+-        pip install ipywidgets
+-        pip install pyodbc
+-        pip install jupyterlab
+-        pip install nltk
+-        pip install pandas
++        # Move previous multiple lines into single txt file
++        pip install -r requirements/requirements_tests.txt
++
++    - name: print medspacy version
++      run: python -c 'import medspacy; print(medspacy.__version__); print(medspacy.__file__)'
++        
+     - name: Lint with flake8
+       run: |
+         # stop the build if there are Python syntax errors or undefined names
+diff --git a/README.md b/README.md
+index 7ea1f6e0..1bf79065 100644
+--- a/README.md
++++ b/README.md
+@@ -26,7 +26,7 @@ for detecting semantic modifiers and attributes of entities, including negation
+ - `medspacy.postprocess`: Flexible framework for modifying and removing extracted entities
+ - `medspacy.io`: Utilities for converting processed texts to structured data and interacting with databases
+ - `medspacy.visualization`: Utilities for visualizing concepts and relationships extracted from text
+-- `SpacyQuickUMLS`: UMLS concept extraction compatible with spacy and medspacy implemented by [our fork](https://github.com/medspacy/QuickUMLS) of [QuickUMLS](https://github.com/Georgetown-IR-Lab/QuickUMLS). More detail on this component, how to use it, how to generate UMLS resources beyond the small UMLS sample can be found in [this notebook](notebooks/11-QuickUMLS_Extraction.ipynb).
++- `SpacyQuickUMLS`: UMLS concept extraction compatible with spacy and medspacy implemented by [our fork](https://github.com/medspacy/QuickUMLS) of [QuickUMLS](https://github.com/Georgetown-IR-Lab/QuickUMLS). More detail on this component, how to use it, how to generate UMLS resources beyond the small UMLS sample can be found in [this notebook](notebooks/11a-QuickUMLS_Extraction_Defaults.ipynb).
+ 
+ Future work could include I/O, relations extraction, and pre-trained clinical models.
+ 
+diff --git a/medspacy/VERSION b/medspacy/VERSION
+new file mode 100644
+index 00000000..9c1218c2
+--- /dev/null
++++ b/medspacy/VERSION
+@@ -0,0 +1 @@
++1.1.3
+\ No newline at end of file
+diff --git a/medspacy/_version.py b/medspacy/_version.py
+index 72f26f59..b23921fd 100644
+--- a/medspacy/_version.py
++++ b/medspacy/_version.py
+@@ -1 +1,3 @@
+-__version__ = "1.1.2"
++import os
++# use this to satisfy toml dynamic version configure without import othere dependencies
++__version__ = open(os.path.join(os.path.dirname(__file__), 'VERSION')).read()
+diff --git a/medspacy/target_matcher/target_matcher.py b/medspacy/target_matcher/target_matcher.py
+index d8b80b4b..0f0ddc09 100644
+--- a/medspacy/target_matcher/target_matcher.py
++++ b/medspacy/target_matcher/target_matcher.py
+@@ -1,3 +1,5 @@
++import warnings
++
+ from typing import List, Union, Iterable, Optional, Literal, Set
+ 
+ from spacy.language import Language
+@@ -143,12 +145,12 @@ def __call__(self, doc: Doc) -> Union[Doc, List[Span]]:
+         """
+         matches = self.__matcher(doc)
+         spans = []
+-        for (rule_id, start, end) in matches:
++        for rule_id, start, end in matches:
+             rule = self.__matcher.rule_map[self.nlp.vocab.strings[rule_id]]
+             span = Span(doc, start=start, end=end, label=rule.category)
+             span._.target_rule = rule
+             if rule.attributes is not None:
+-                for (attribute, value) in rule.attributes.items():
++                for attribute, value in rule.attributes.items():
+                     try:
+                         setattr(span._, attribute, value)
+                     except AttributeError as e:
+@@ -164,9 +166,10 @@ def __call__(self, doc: Doc) -> Union[Doc, List[Span]]:
+                 except ValueError:
+                     # spaCy will raise a value error if the token in span are already part of an entity (i.e., as part
+                     # of an upstream component). In that case, let the existing span supersede this one.
+-                    raise RuntimeWarning(
++                    warnings.warn(
+                         f'The result ""{span}"" conflicts with a pre-existing entity in doc.ents. This result has been '
+-                        f"skipped."
++                        f"skipped.",
++                        RuntimeWarning,
+                     )
+             return doc
+         elif self.result_type.lower() == "group":
+diff --git a/pyproject.toml b/pyproject.toml
+index 84efb235..22e05372 100644
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
+ 
+ [project]
+ name = "medspacy"
+-dynamic = ["version"]
++dynamic = ["version","dependencies","readme"]
+ authors = [{name = "medSpaCy"}]
+ description = "Library for clinical NLP with spaCy."
+ requires-python = ">=3.8"
+@@ -14,13 +14,11 @@ classifiers = [
+     "Programming Language :: Python :: 3",
+ ]
+ 
+-dependencies = [
+-    "spacy >= 3.4.1, < 3.6",
+-    "PyRuSH >= 1.0.8",
+-    "pysbd == 0.3.4",
+-    "jsonschema",
+-    "medspacy_quickumls == 3.0"
+-]
++#https://setuptools.pypa.io/en/latest/userguide/pyproject_config.html#dynamic-metadata
++[tool.setuptools.dynamic]
++dependencies = {file = ["requirments/requirements.txt"]}
++version={file = "medspacy/VERSION"}
++readme={file = ['README.md']}
+ 
+ [project.urls]
+ Source = "https://github.com/medspacy/medspacy"
+@@ -28,6 +26,3 @@ Source = "https://github.com/medspacy/medspacy"
+ [tool.setuptools]
+ include-package-data = true
+ 
+-[tool.setuptools_scm]
+-write_to = "medspacy/_version.py"
+-
+diff --git a/requirements/requirements.txt b/requirements/requirements.txt
+new file mode 100644
+index 00000000..23d8a4db
+--- /dev/null
++++ b/requirements/requirements.txt
+@@ -0,0 +1,5 @@
++spacy>=3.4.1, <3.6
++PyRuSH>=1.0.8
++pysbd==0.3.4
++jsonschema
++medspacy_quickumls==3.0
+\ No newline at end of file
+diff --git a/requirements_tests.txt b/requirements/requirements_tests.txt
+similarity index 100%
+rename from requirements_tests.txt
+rename to requirements/requirements_tests.txt
+diff --git a/requirements_piptests.txt b/requirements_piptests.txt
+deleted file mode 100644
+index 39419b9a..00000000
+--- a/requirements_piptests.txt
++++ /dev/null
+@@ -1,8 +0,0 @@
+-medspacy
+-ipywidgets
+-pyodbc
+-jupyterlab
+-nltk
+-pandas        
+-https://s3-us-west-2.amazonaws.com/ai2-s2-scispacy/releases/v0.3.0/en_core_sci_sm-0.3.0.tar.gz
+-pytest
+diff --git a/resources/context_rules.json b/resources/context_rules.json
+index 05928cb6..5d4f18e0 100644
+--- a/resources/context_rules.json
++++ b/resources/context_rules.json
+@@ -1396,6 +1396,23 @@
+       "literal": ": no",
+       "pattern": null,
+       "direction": "BACKWARD"
++    },
++    {
++      "category": "HISTORICAL",
++      "literal": "presentation",
++      "pattern": [
++        {
++          "LOWER" : {"IN": ["present", "presenting", "presents"]}
++        }
++      ],
++      "direction": "TERMINATE"
++    },
++    {
++      "category": "HISTORICAL",
++      "literal": "comes in with",
++      "pattern": null,
++      "direction": "TERMINATE"
+     }
++
+   ]
+ }
+diff --git a/setup.py b/setup.py
+index 3f84fc49..9aefb45f 100644
+--- a/setup.py
++++ b/setup.py
+@@ -20,6 +20,10 @@ def package_files(directory):
+ # get all files recursively from /resources
+ resource_files = package_files("./resources")
+ 
++# read requirements configuration
++with open('requirements/requirements.txt') as f:
++    required = f.read().splitlines()
++
+ 
+ def get_version():
+     """Load the version from version.py, without importing it.
+@@ -47,13 +51,7 @@ def get_version():
+     description="Library for clinical NLP with spaCy.",
+     author="medSpaCy",
+     packages=find_packages(),
+-    install_requires=[
+-        "spacy>=3.4.1, <3.6",
+-        "PyRuSH>=1.0.8",
+-        "pysbd==0.3.4",
+-        "jsonschema",
+-        "medspacy_quickumls==3.0"
+-    ],
++    install_requires=required,
+     long_description=long_description,
+     long_description_content_type="text/markdown",
+     package_data={"medspacy": resource_files},

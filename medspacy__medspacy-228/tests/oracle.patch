@@ -1,0 +1,18 @@
+diff --git a/medspacy/context/context.py b/medspacy/context/context.py
+index 2bbf18e6..780cd041 100644
+--- a/medspacy/context/context.py
++++ b/medspacy/context/context.py
+@@ -243,8 +243,11 @@ def register_graph_attributes(cls):
+         """
+         Registers spaCy attribute extensions: Span._.modifiers and Doc._.context_graph.
+         """
+-        Span.set_extension("modifiers", default=(), force=True)
+-        Doc.set_extension("context_graph", default=None, force=True)
++        try:
++            Span.set_extension("modifiers", default=(), force=True)
++            Doc.set_extension("context_graph", default=None, force=True)
++        except ValueError:  # Extension already set
++            pass
+ 
+     @classmethod
+     def register_default_attributes(cls):

@@ -1,0 +1,66 @@
+version = "1.0"
+
+[task]
+name = "default/medspacy__medspacy-308"
+description = "Develop"
+
+[metadata]
+difficulty = "small"
+category = "bugfix"
+keywords = [
+    "medspacy",
+    "pr_diff",
+]
+
+[metadata.repo2env]
+pipeline = "pr_diff"
+pipeline_version = "0.3.0"
+repo = "medspacy/medspacy"
+ref = "3cf5b4c55f2c14edcd34995441ec22acab4daeb9"
+reference = "https://github.com/medspacy/medspacy/pull/308"
+source_access = "auto"
+built_at = "2026-11-18T03:43:52.817081+00:00"
+reward_kinds = [
+    "diff_similarity",
+]
+spec_version = "0.2.0"
+content_hash = "sha256:1a38a22939e15c7337c0d3a54ea8b5c458a92cdfb8b235b1d4ad1e48f0c48ec2"
+
+[metadata.repo2env.pr_diff]
+pr_merged_at = "2024-11-21T21:51:17Z"
+diff_format = "unified"
+context_files = [
+    ".github/workflows/manual_test_pip.yml",
+    "README.md",
+    "medspacy/VERSION",
+    "requirements/requirements.txt",
+    "requirements/requirements_tests.txt",
+]
+
+[metadata.repo2env.reward_calibration]
+baseline_reward = 0.0
+loc_changed = 17
+difficulty = "small"
+
+[metadata.repo2env.evaluation]
+schema_version = "1"
+status = "unverified"
+stage = "generation"
+reason_codes = [
+    "validation_not_run",
+]
+detail = "Generated task; validation has not been established."
+provenance = "unknown"
+evidence = []
+
+[metadata.repo2env.reproducibility]
+mode = "local_only"
+image_ref = "python:3.12-slim"
+image_tag = "python:3.12-slim"
+image_visibility = "private"
+
+[agent]
+timeout_sec = 1800.0
+
+[verifier]
+timeout_sec = 300.0

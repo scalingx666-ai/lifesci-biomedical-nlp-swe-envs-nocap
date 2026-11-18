@@ -1,0 +1,123 @@
+diff --git a/.github/workflows/build_release.yml b/.github/workflows/build_release.yml
+index 455abd79..fb0212eb 100644
+--- a/.github/workflows/build_release.yml
++++ b/.github/workflows/build_release.yml
+@@ -19,9 +19,9 @@ jobs:
+       contents: write
+ 
+     steps:
+-    - uses: actions/checkout@v3
++    - uses: actions/checkout@v4
+     - name: Set up Python ${{ matrix.python-version }}
+-      uses: actions/setup-python@v4
++      uses: actions/setup-python@v5
+       with:
+         python-version: 3.8
+         cache: 'pip'   
+diff --git a/.github/workflows/manual_test_multiversion.yml b/.github/workflows/manual_test_multiversion.yml
+index 8ada18a5..902f61e4 100644
+--- a/.github/workflows/manual_test_multiversion.yml
++++ b/.github/workflows/manual_test_multiversion.yml
+@@ -16,9 +16,9 @@ jobs:
+     runs-on: ${{ matrix.os }}
+ 
+     steps:
+-    - uses: actions/checkout@v3
++    - uses: actions/checkout@v4
+     - name: Set up Python ${{ matrix.python-version }}
+-      uses: actions/setup-python@v4
++      uses: actions/setup-python@v5
+       with:
+         python-version: ${{ matrix.python-version }} 
+         cache: 'pip'
+diff --git a/.github/workflows/manual_test_pip.yml b/.github/workflows/manual_test_pip.yml
+index 407c49d4..009aae1d 100644
+--- a/.github/workflows/manual_test_pip.yml
++++ b/.github/workflows/manual_test_pip.yml
+@@ -25,7 +25,7 @@ jobs:
+     runs-on: ${{ matrix.os }}
+ 
+     steps:
+-    - uses: actions/checkout@v3
++    - uses: actions/checkout@v4
+     - name: Git clone repo and remove source code
+       run: |
+         pwd
+@@ -35,7 +35,7 @@ jobs:
+         ls
+ 
+     - name: Set up pip
+-      uses: actions/setup-python@v4
++      uses: actions/setup-python@v5
+       with:
+         python-version: ${{ matrix.python-version }}   
+         cache: 'pip'   
+diff --git a/.github/workflows/python-app.yml b/.github/workflows/python-app.yml
+index d3ba24cc..083d0222 100644
+--- a/.github/workflows/python-app.yml
++++ b/.github/workflows/python-app.yml
+@@ -39,9 +39,9 @@ jobs:
+             python-version: 3.9
+ 
+     steps:
+-    - uses: actions/checkout@v3
++    - uses: actions/checkout@v4
+     - name: Set up Python ${{ matrix.python-version }}
+-      uses: actions/setup-python@v4
++      uses: actions/setup-python@v5
+       with:
+         python-version: ${{ matrix.python-version }}   
+         cache: 'pip'   
+@@ -52,7 +52,7 @@ jobs:
+     - name: Install dependencies      
+       run: |
+         python --version
+-        python -m pip install --upgrade pip        
++        pip install --upgrade pip   
+         # Install our package to make sure our setup works...
+         pip install -U pip setuptools wheel
+         pip install -r requirements/requirements.txt
+@@ -85,3 +85,7 @@ jobs:
+         pytest -k "not test_span_groups and not test_overlapping_spans and not test_multiword_span"
+         # now in a separate session we can run the QuickUMLS span group tests...
+         pytest -k "test_span_groups or test_overlapping_spans or test_multiword_span"
++
++    - name: Test Build package      
++      run: |
++        python setup.py sdist bdist_wheel
+diff --git a/.github/workflows/python-publish.yml b/.github/workflows/python-publish.yml
+index e73536b6..3187e386 100644
+--- a/.github/workflows/python-publish.yml
++++ b/.github/workflows/python-publish.yml
+@@ -20,9 +20,9 @@ jobs:
+     runs-on: ubuntu-latest
+ 
+     steps:
+-    - uses: actions/checkout@v3
++    - uses: actions/checkout@v4
+     - name: Set up Python
+-      uses: actions/setup-python@v3
++      uses: actions/setup-python@v5
+       with:
+         python-version: '3.x'
+     - name: Install dependencies
+diff --git a/pyproject.toml b/pyproject.toml
+index f033e04d..64710ac8 100644
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -8,7 +8,6 @@ dynamic = ["version","dependencies","readme"]
+ authors = [{name = "medSpaCy"}]
+ description = "Library for clinical NLP with spaCy."
+ requires-python = ">=3.8"
+-readme = "README.md"
+ license = { file = "LICENSE" }
+ classifiers = [
+     "License :: OSI Approved :: MIT License",
+@@ -25,5 +24,4 @@ readme={file = ['README.md'], content-type = "text/markdown"}
+ Source = "https://github.com/medspacy/medspacy"
+ 
+ [tool.setuptools]
+-include-package-data = true
+-
++include-package-data = true
+\ No newline at end of file

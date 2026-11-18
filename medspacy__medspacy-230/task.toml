@@ -1,0 +1,62 @@
+version = "1.0"
+
+[task]
+name = "default/medspacy__medspacy-230"
+description = "Add ConText patterns"
+
+[metadata]
+difficulty = "small"
+category = "bugfix"
+keywords = [
+    "medspacy",
+    "pr_diff",
+]
+
+[metadata.repo2env]
+pipeline = "pr_diff"
+pipeline_version = "0.3.0"
+repo = "medspacy/medspacy"
+ref = "a16a3200de46883f0820e00cdd24748a83d47afa"
+reference = "https://github.com/medspacy/medspacy/pull/230"
+source_access = "auto"
+built_at = "2026-11-18T03:44:45.286141+00:00"
+reward_kinds = [
+    "diff_similarity",
+]
+spec_version = "0.2.0"
+content_hash = "sha256:4a1660c954d7be843ed0e4c186e8bfa0e3d2cd5e4858ec8f443c16c37e5dad81"
+
+[metadata.repo2env.pr_diff]
+pr_merged_at = "2023-06-16T17:59:59Z"
+diff_format = "unified"
+context_files = [
+    "resources/context_rules.json",
+]
+
+[metadata.repo2env.reward_calibration]
+baseline_reward = 0.0
+loc_changed = 17
+difficulty = "small"
+
+[metadata.repo2env.evaluation]
+schema_version = "1"
+status = "unverified"
+stage = "generation"
+reason_codes = [
+    "validation_not_run",
+]
+detail = "Generated task; validation has not been established."
+provenance = "unknown"
+evidence = []
+
+[metadata.repo2env.reproducibility]
+mode = "local_only"
+image_ref = "python:3.12-slim"
+image_tag = "python:3.12-slim"
+image_visibility = "private"
+
+[agent]
+timeout_sec = 1800.0
+
+[verifier]
+timeout_sec = 300.0

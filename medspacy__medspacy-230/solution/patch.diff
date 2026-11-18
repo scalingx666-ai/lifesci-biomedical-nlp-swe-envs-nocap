@@ -1,0 +1,28 @@
+diff --git a/resources/context_rules.json b/resources/context_rules.json
+index 05928cb6..5d4f18e0 100644
+--- a/resources/context_rules.json
++++ b/resources/context_rules.json
+@@ -1396,6 +1396,23 @@
+       "literal": ": no",
+       "pattern": null,
+       "direction": "BACKWARD"
++    },
++    {
++      "category": "HISTORICAL",
++      "literal": "presentation",
++      "pattern": [
++        {
++          "LOWER" : {"IN": ["present", "presenting", "presents"]}
++        }
++      ],
++      "direction": "TERMINATE"
++    },
++    {
++      "category": "HISTORICAL",
++      "literal": "comes in with",
++      "pattern": null,
++      "direction": "TERMINATE"
+     }
++
+   ]
+ }

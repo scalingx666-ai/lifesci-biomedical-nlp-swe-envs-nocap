@@ -1,0 +1,73 @@
+version = "1.0"
+
+[task]
+name = "default/medspacy__medspacy-11"
+description = "Alec"
+
+[metadata]
+difficulty = "large"
+category = "bugfix"
+keywords = [
+    "medspacy",
+    "pr_diff",
+]
+
+[metadata.repo2env]
+pipeline = "pr_diff"
+pipeline_version = "0.3.0"
+repo = "medspacy/medspacy"
+ref = "502d689945913b131810488d3fac8680fe41de77"
+reference = "https://github.com/medspacy/medspacy/pull/11"
+source_access = "auto"
+built_at = "2026-11-18T03:47:30.021546+00:00"
+reward_kinds = [
+    "diff_similarity",
+]
+spec_version = "0.2.0"
+content_hash = "sha256:e12c22e9e9396f6e8e889a6bc654348c8d623bf6067a98158ab62592e0b980c2"
+
+[metadata.repo2env.pr_diff]
+pr_merged_at = "2020-09-21T20:14:46Z"
+diff_format = "unified"
+context_files = [
+    ".gitignore",
+    "medspacy/custom_tokenizer.py",
+    "medspacy/util.py",
+    "notebooks/1-Introduction.ipynb",
+    "notebooks/10-Custom_Tokenizer.ipynb",
+    "notebooks/2-Preprocessing_and_Sentence_Splitting.ipynb",
+    "notebooks/2-Tokenizing-and-Sentence-Splitting.ipynb",
+    "notebooks/3-Information-Extraction.ipynb",
+    "notebooks/4-Adding-Pipeline-Components.ipynb",
+    "notebooks/5-Full-Pipeline.ipynb",
+    "notebooks/6-Using-Pretrained-Models.ipynb",
+    "tests/test_medspacy.py",
+]
+
+[metadata.repo2env.reward_calibration]
+baseline_reward = 0.0
+loc_changed = 4310
+difficulty = "large"
+
+[metadata.repo2env.evaluation]
+schema_version = "1"
+status = "unverified"
+stage = "generation"
+reason_codes = [
+    "validation_not_run",
+]
+detail = "Generated task; validation has not been established."
+provenance = "unknown"
+evidence = []
+
+[metadata.repo2env.reproducibility]
+mode = "local_only"
+image_ref = "python:3.12-slim"
+image_tag = "python:3.12-slim"
+image_visibility = "private"
+
+[agent]
+timeout_sec = 1800.0
+
+[verifier]
+timeout_sec = 300.0

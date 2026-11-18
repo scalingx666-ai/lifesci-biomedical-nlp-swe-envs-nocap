@@ -1,0 +1,131 @@
+diff --git a/medspacy/context/context.py b/medspacy/context/context.py
+index 340e84a0..9f4a2183 100644
+--- a/medspacy/context/context.py
++++ b/medspacy/context/context.py
+@@ -53,6 +53,7 @@ def __init__(
+         ] = "default",
+         input_span_type: Union[Literal["ents", "group"]] = "ents",
+         span_group_name: str = "medspacy_spans",
++        match_target_sents_only: bool = True,
+     ):
+         """
+         Creates a new ConText object.
+@@ -105,6 +106,7 @@ def __init__(
+         self.input_span_type = input_span_type
+         self.span_group_name = span_group_name
+         self.context_attributes_mapping = None
++        self.match_target_sents_only = match_target_sents_only
+ 
+         self.DEFAULT_RULES_FILEPATH = path.join(
+             Path(__file__).resolve().parents[2], "resources", language_code.lower(), "context_rules.json"
+@@ -309,7 +311,22 @@ def __call__(self, doc, targets: str = None) -> Doc:
+         context_graph.targets = targets
+ 
+         context_graph.modifiers = []
+-        matches = self.__matcher(doc)
++        if self.match_target_sents_only:
++            target_sents = set()
++            matches = []
++            for target in targets:
++                try:
++                    target_sent = target.sent
++                except ValueError as e:
++                    raise ValueError("If match_target_sents_only is True, then sentence boundaries must be set. "
++                                     "Please set context.match_target_sents_only to False or set sentence boundaries.")
++                target_sents.add(target_sent)
++            target_sents = sorted(list(target_sents))
++            for sent in target_sents:
++                matches += self.__matcher(sent)
++        else:
++            matches = self.__matcher(doc)
++        
+ 
+         for (match_id, start, end) in matches:
+             # Get the ConTextRule object defining this modifier
+diff --git a/tests/context/test_context_component.py b/tests/context/test_context_component.py
+index 2994bddc..b57313db 100644
+--- a/tests/context/test_context_component.py
++++ b/tests/context/test_context_component.py
+@@ -172,7 +172,7 @@ def test_custom_attributes_value2(self):
+         assert doc.ents[0]._.is_family is False
+ 
+     def test_simple_callback(self, capsys):
+-        context = ConText(nlp, rules=None)
++        context = ConText(nlp, rules=None, match_target_sents_only=False)
+ 
+         def simple_callback(matcher, doc, i, matches):
+             match_id, start, end = matches[i]
+@@ -315,7 +315,7 @@ def test_pseudo_modifier(self):
+ 
+     def test_max_scope(self):
+         nlp_no_sents = spacy.blank("en")
+-        context = ConText(nlp_no_sents, max_scope=1)
++        context = ConText(nlp_no_sents, max_scope=1, match_target_sents_only=False)
+         doc = nlp_no_sents("There is no evidence of pneumonia or chf.")
+         doc.ents = (Span(doc, 5, 6, "CONDITION"), Span(doc, 7, 8, "CONDITION"))
+         context(doc)
+@@ -331,7 +331,7 @@ def test_regex_pattern(self):
+                 pattern="no (history|hx) of",
+             ),
+         ]
+-        context = ConText(nlp, rules=None)
++        context = ConText(nlp, rules=None, match_target_sents_only=False)
+         context.add(rules)
+ 
+         doc = nlp("No history of afib. No hx of MI.")
+@@ -343,7 +343,7 @@ def test_prune(self):
+             ConTextRule("history of", "HISTORICAL", direction="FORWARD"),
+             ConTextRule("no history of", "NEGATED_EXISTENCE", direction="FORWARD"),
+         ]
+-        context = ConText(nlp, rules=None, prune_on_modifier_overlap=True)
++        context = ConText(nlp, rules=None, prune_on_modifier_overlap=True, match_target_sents_only=False)
+         context.add(rules)
+ 
+         doc = nlp("No history of afib.")
+@@ -359,7 +359,7 @@ def test_prune_false(self):
+             ConTextRule("history of", "HISTORICAL", direction="FORWARD"),
+             ConTextRule("no history of", "NEGATED_EXISTENCE", direction="FORWARD"),
+         ]
+-        context = ConText(nlp, rules=None, prune_on_modifier_overlap=False)
++        context = ConText(nlp, rules=None, prune_on_modifier_overlap=False, match_target_sents_only=False)
+         context.add(rules)
+ 
+         doc = nlp("No history of afib.")
+@@ -448,3 +448,37 @@ def __call__(self, doc):
+         Doc.remove_extension("my_custom_spans")
+         nlp.remove_pipe("custom_span_setter")
+         nlp.remove_pipe("medspacy_context")
++
++    def test_match_target_sents_only(self):
++        rules = [
++            ConTextRule("no evidence", "NEGATED_EXISTENCE")
++        ]
++        context = ConText(nlp, rules=None, match_target_sents_only=True)
++        context.add(rules)
++
++        doc = nlp("There is no evidence of pneumonia. This sentence has no evidence.")
++        doc.ents = (Span(doc, 5, 6, "PNEUMONIA"),)
++        assert len(doc.ents) == 1
++
++        context(doc)
++        assert len(doc._.context_graph.targets) == 1
++        assert len(doc._.context_graph.modifiers) == 1
++        assert len(doc._.context_graph.edges) == 1
++
++    def test_match_target_sents_only_false(self):
++        rules = [
++            ConTextRule("no evidence", "NEGATED_EXISTENCE")
++        ]
++        context = ConText(nlp, rules=None, match_target_sents_only=False)
++        context.add(rules)
++
++        doc = nlp("There is no evidence of pneumonia. This sentence has no evidence.")
++        doc.ents = (Span(doc, 5, 6, "PNEUMONIA"),)
++        assert len(doc.ents) == 1
++        context(doc)
++
++        assert len(doc._.context_graph.targets) == 1
++        assert len(doc._.context_graph.modifiers) == 2
++        assert len(doc._.context_graph.edges) == 1
++
++

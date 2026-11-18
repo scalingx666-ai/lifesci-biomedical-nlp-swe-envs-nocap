@@ -1,0 +1,422 @@
+diff --git a/medspacy/_extensions.py b/medspacy/_extensions.py
+index 69df06d1..254769ac 100644
+--- a/medspacy/_extensions.py
++++ b/medspacy/_extensions.py
+@@ -2,6 +2,7 @@
+ from spacy.tokens import Doc, Span, Token
+ 
+ from .common.util import span_contains
++from loguru import logger
+ 
+ # from .io.doc_consumer import ALLOWED_DATA_TYPES
+ 
+@@ -28,7 +29,7 @@ def set_span_extensions():
+         try:
+             Span.set_extension(attr, **attr_info)
+         except ValueError as e:  # If the attribute has already set, this will raise an error
+-            # print(e)
++            logger.warning(e)
+             pass
+ 
+ 
+diff --git a/medspacy/common/medspacy_matcher.py b/medspacy/common/medspacy_matcher.py
+index d23912a5..8a6c7765 100644
+--- a/medspacy/common/medspacy_matcher.py
++++ b/medspacy/common/medspacy_matcher.py
+@@ -131,12 +131,20 @@ def __call__(self, doc: Doc) -> List[Tuple[int, int, int]]:
+         in the case of overlapping matches the longest will be returned.
+ 
+         Args:
+-            doc: The spaCy Doc to process.
++            doc: The spaCy Doc or Span to process.
+ 
+         Returns:
+             A list of tuples, each containing 3 ints representing the individual match (match_id, start, end).
++            All indices are document-relative, even when a Span is passed.
+         """
+         matches = self.__matcher(doc)
++        # spaCy's Matcher returns span-relative indices when called on a Span,
++        # unlike PhraseMatcher and RegexMatcher which return doc-relative indices.
++        # Normalize Matcher results to doc-relative so all indices are consistent.
++        if hasattr(doc, "start") and doc.start != 0:
++            offset = doc.start
++            matches = [(match_id, start + offset, end + offset)
++                       for (match_id, start, end) in matches]
+         matches += self.__phrase_matcher(doc)
+         matches += self.__regex_matcher(doc)
+         if self._prune:
+diff --git a/medspacy/context/context.py b/medspacy/context/context.py
+index 9f4a2183..a37e2355 100644
+--- a/medspacy/context/context.py
++++ b/medspacy/context/context.py
+@@ -11,6 +11,7 @@
+ from .context_modifier import ConTextModifier
+ from .context_rule import ConTextRule
+ from ..common.medspacy_matcher import MedspacyMatcher
++from loguru import logger
+ 
+ #
+ DEFAULT_ATTRIBUTES = {
+@@ -317,9 +318,9 @@ def __call__(self, doc, targets: str = None) -> Doc:
+             for target in targets:
+                 try:
+                     target_sent = target.sent
+-                except ValueError as e:
+-                    raise ValueError("If match_target_sents_only is True, then sentence boundaries must be set. "
+-                                     "Please set context.match_target_sents_only to False or set sentence boundaries.")
++                except ValueError:
++                    logger.warning("If match_target_sents_only is True, then sentence boundaries must be set.\n\tPlease set context.match_target_sents_only to False or set sentence boundaries.")
++                    continue
+                 target_sents.add(target_sent)
+             target_sents = sorted(list(target_sents))
+             for sent in target_sents:
+diff --git a/medspacy/io/db_connect.py b/medspacy/io/db_connect.py
+index f9bf14e3..7d19945f 100644
+--- a/medspacy/io/db_connect.py
++++ b/medspacy/io/db_connect.py
+@@ -1,3 +1,4 @@
++from loguru import logger
+ class DbConnect:
+     """DbConnect is a wrapper for either a pyodbc or sqlite3 connection. It can then be
+     passed into the DbReader and DbWriter classes to retrieve/store document data.
+@@ -57,7 +58,7 @@ def __init__(
+                     )
+                 )
+ 
+-        print("Opened connection to {0}.{1}".format(server, db))
++        logger.debug("Opened connection to {0}.{1}".format(server, db))
+ 
+     def create_table(self, query, table_name, drop_existing):
+         if drop_existing:
+@@ -76,7 +77,7 @@ def create_table(self, query, table_name, drop_existing):
+             raise e
+         else:
+             self.conn.commit()
+-            print("Created table {0} with query: {1}".format(table_name, query))
++            logger.debug("Created table {0} with query: {1}".format(table_name, query))
+ 
+     def write(self, query, data):
+         try:
+@@ -87,15 +88,15 @@ def write(self, query, data):
+             raise e
+         else:
+             self.conn.commit()
+-            # print("Wrote {0} rows with query: {1}".format(len(data), query))
++            logger.debug("Wrote {0} rows with query: {1}".format(len(data), query))
+ 
+     def read(self, query):
+         self.cursor.execute(query)
+         result = self.cursor.fetchall()
+-        # print("Read {0} rows with query: {1}".format(len(result), query))
++        logger.debug("Read {0} rows with query: {1}".format(len(result), query))
+         return result
+ 
+     def close(self):
+         self.conn.commit()
+         self.conn.close()
+-        print("Connection closed.")
++        logger.debug("Connection closed.")
+diff --git a/medspacy/postprocess/postprocessing_rule.py b/medspacy/postprocess/postprocessing_rule.py
+index d0a8c043..60788a13 100644
+--- a/medspacy/postprocess/postprocessing_rule.py
++++ b/medspacy/postprocess/postprocessing_rule.py
+@@ -1,6 +1,7 @@
+ from typing import Iterable, Callable
+ 
+ from ..postprocess import PostprocessingPattern
++from loguru import logger
+ 
+ 
+ class PostprocessingRule:
+@@ -60,8 +61,7 @@ def __call__(self, ent, i, debug=False):
+                     return False
+ 
+         # Every pattern passed - do the action
+-        if debug:
+-            print("Passed:", self, "on ent:", ent, ent.sent)
++        logger.debug(f"Passed: {self} on ent: {ent}, {ent.sent}")
+ 
+         try:
+             if self.kwargs:
+diff --git a/medspacy/postprocess/postprocessor.py b/medspacy/postprocess/postprocessor.py
+index fda6e900..64e9fff4 100644
+--- a/medspacy/postprocess/postprocessor.py
++++ b/medspacy/postprocess/postprocessor.py
+@@ -3,6 +3,7 @@
+ 
+ from spacy.language import Language
+ from spacy.tokens import Doc
++from loguru import logger
+ 
+ from medspacy.postprocess import PostprocessingRule
+ 
+@@ -112,8 +113,7 @@ def __call__(self, doc: Doc):
+ 
+         for i in range(len(spans) - 1, -1, -1):
+             ent = spans[i]
+-            if self.debug:
+-                print(ent)
++            logger.debug(ent)
+ 
+             # let's keep track of whether the rule makes a change to spans
+             span_count_before_rule = None
+diff --git a/medspacy/util.py b/medspacy/util.py
+index 6a72852d..3f1a5d28 100644
+--- a/medspacy/util.py
++++ b/medspacy/util.py
+@@ -12,6 +12,7 @@
+ from spacy import Language
+ 
+ from quickumls import spacy_component
++from loguru import logger
+ 
+ DEFAULT_PIPE_NAMES = {
+     "medspacy_tokenizer",
+@@ -113,7 +114,7 @@ def load(
+         if quickumls_path is None:
+             quickumls_path = get_quickumls_demo_dir(language_code)
+ 
+-            print(
++            logger.info(
+                 "Loading QuickUMLS resources from a Medspacy-distributed SAMPLE of UMLS data from here: {}".format(
+                     quickumls_path
+                 )
+diff --git a/requirements/requirements.txt b/requirements/requirements.txt
+index 495106b6..c3d676ff 100644
+--- a/requirements/requirements.txt
++++ b/requirements/requirements.txt
+@@ -3,4 +3,5 @@ spacy>=3.8,<4.0; python_version >= "3.12"
+ PyRuSH>=1.0.8
+ pysbd==0.3.4
+ jsonschema
+-medspacy_quickumls==3.2
+\ No newline at end of file
++medspacy_quickumls==3.2
++loguru
+\ No newline at end of file
+diff --git a/requirements/requirements_tests.txt b/requirements/requirements_tests.txt
+index 1a7b6e50..cfe81c63 100644
+--- a/requirements/requirements_tests.txt
++++ b/requirements/requirements_tests.txt
+@@ -7,5 +7,6 @@ pytest
+ flake8    
+ spacy<3.8; python_version < "3.12"
+ spacy>=3.8,<4.0; python_version >= "3.12"
++loguru
+ ipython<9.0
+ 
+diff --git a/tests/common/test_medspacy_matcher.py b/tests/common/test_medspacy_matcher.py
+index 4427f8df..2bfa4856 100644
+--- a/tests/common/test_medspacy_matcher.py
++++ b/tests/common/test_medspacy_matcher.py
+@@ -3,11 +3,14 @@
+ sys.path.append(os.getcwd())
+ import spacy
+ import warnings
++from spacy.matcher import Matcher, PhraseMatcher
+ 
+ from medspacy.common.medspacy_matcher import MedspacyMatcher
++from medspacy.common.regex_matcher import RegexMatcher
+ from medspacy.common import BaseRule
+ 
+ nlp = spacy.blank("en")
++nlp.add_pipe("sentencizer")
+ 
+ 
+ class TestTargetMatcher:
+@@ -44,3 +47,154 @@ def test_prune_false(self):
+         doc = nlp("no history of pneumonia")
+         matches = matcher(doc)
+         assert len(matches) == 2
++
++
++class TestSpacyMatcherSpanIndices:
++    """Verify that spaCy's Matcher, PhraseMatcher, and RegexMatcher return
++    the expected index coordinate systems when called on a Span.
++
++    These tests document spaCy's behavior so that if it changes in a future
++    version, the test suite will catch it immediately. MedspacyMatcher
++    depends on normalizing these differences.
++
++    As of spaCy 3.7:
++    - Matcher returns span-relative indices
++    - PhraseMatcher returns doc-relative indices
++    - RegexMatcher (medspaCy) returns doc-relative indices
++    """
++
++    def _make_doc(self):
++        doc = nlp("No pneumonia. Possible pneumonia.")
++        sents = list(doc.sents)
++        assert len(sents) == 2
++        return doc, sents[0], sents[1]
++
++    def test_spacy_matcher_returns_span_relative_indices(self):
++        """spaCy Matcher returns indices relative to the Span, not the Doc."""
++        doc, sent1, sent2 = self._make_doc()
++
++        matcher = Matcher(nlp.vocab)
++        matcher.add("POSSIBLE", [[{"LOWER": "possible"}]])
++
++        # On full doc: should return doc-relative index 3
++        doc_matches = matcher(doc)
++        assert len(doc_matches) == 1
++        assert doc_matches[0][1] == 3  # start index
++
++        # On second sentence: returns span-relative index 0
++        sent_matches = matcher(sent2)
++        assert len(sent_matches) == 1
++        assert sent_matches[0][1] == 0  # span-relative, NOT 3
++
++    def test_spacy_phrase_matcher_returns_doc_relative_indices(self):
++        """spaCy PhraseMatcher returns doc-relative indices even on a Span."""
++        doc, sent1, sent2 = self._make_doc()
++
++        pm = PhraseMatcher(nlp.vocab, attr="LOWER")
++        pm.add("POSSIBLE", [nlp.make_doc("possible")])
++
++        # On second sentence: returns doc-relative index 3
++        sent_matches = pm(sent2)
++        assert len(sent_matches) == 1
++        assert sent_matches[0][1] == 3  # doc-relative
++
++    def test_regex_matcher_returns_doc_relative_indices(self):
++        """medspaCy RegexMatcher returns doc-relative indices on a Span."""
++        doc, sent1, sent2 = self._make_doc()
++
++        rm = RegexMatcher(nlp.vocab)
++        rm.add("POSSIBLE", [r"[Pp]ossible"])
++
++        # On second sentence: returns doc-relative index 3
++        sent_matches = rm(sent2)
++        assert len(sent_matches) == 1
++        assert sent_matches[0][1] == 3  # doc-relative
++
++
++class TestMedspacyMatcherSpanIndices:
++    """Verify that MedspacyMatcher normalizes all match indices to
++    doc-relative coordinates, regardless of which internal matcher
++    produced the match."""
++
++    def _make_doc(self):
++        doc = nlp("No pneumonia. Possible pneumonia.")
++        sents = list(doc.sents)
++        return doc, sents[0], sents[1]
++
++    def test_phrase_rule_on_span_returns_doc_relative(self):
++        """A phrase-based rule matched on a Span returns doc-relative indices."""
++        doc, sent1, sent2 = self._make_doc()
++
++        matcher = MedspacyMatcher(nlp)
++        matcher.add([BaseRule("possible", "POSSIBLE")])
++
++        matches = matcher(sent2)
++        assert len(matches) == 1
++        _, start, end = matches[0]
++        assert start == 3
++        assert end == 4
++        assert doc[start:end].text == "Possible"
++
++    def test_token_pattern_rule_on_span_returns_doc_relative(self):
++        """A token-pattern rule matched on a Span returns doc-relative indices."""
++        doc, sent1, sent2 = self._make_doc()
++
++        matcher = MedspacyMatcher(nlp)
++        matcher.add([BaseRule("possible", "POSSIBLE",
++                              pattern=[{"LOWER": "possible"}])])
++
++        matches = matcher(sent2)
++        assert len(matches) == 1
++        _, start, end = matches[0]
++        assert start == 3
++        assert end == 4
++        assert doc[start:end].text == "Possible"
++
++    def test_regex_rule_on_span_returns_doc_relative(self):
++        """A regex rule matched on a Span returns doc-relative indices."""
++        doc, sent1, sent2 = self._make_doc()
++
++        matcher = MedspacyMatcher(nlp)
++        matcher.add([BaseRule("possible", "POSSIBLE",
++                              pattern=r"[Pp]ossible")])
++
++        matches = matcher(sent2)
++        assert len(matches) == 1
++        _, start, end = matches[0]
++        assert start == 3
++        assert end == 4
++        assert doc[start:end].text == "Possible"
++
++    def test_multiple_sents_all_doc_relative(self):
++        """Matching on multiple sentences returns doc-relative indices for all."""
++        doc, sent1, sent2 = self._make_doc()
++
++        matcher = MedspacyMatcher(nlp)
++        matcher.add([BaseRule("pneumonia", "CONDITION")])
++
++        all_matches = []
++        for sent in doc.sents:
++            all_matches += matcher(sent)
++
++        assert len(all_matches) == 2
++        # First match: "pneumonia" at token 1
++        assert all_matches[0][1] == 1
++        assert all_matches[0][2] == 2
++        # Second match: "pneumonia" at token 4
++        assert all_matches[1][1] == 4
++        assert all_matches[1][2] == 5
++
++    def test_first_sent_indices_unchanged(self):
++        """For the first sentence (start=0), indices are the same regardless."""
++        doc, sent1, sent2 = self._make_doc()
++
++        matcher = MedspacyMatcher(nlp)
++        matcher.add([BaseRule("no", "NEGATION",
++                              pattern=[{"LOWER": "no"}])])
++
++        doc_matches = matcher(doc)
++        sent_matches = matcher(sent1)
++
++        # Both should return index 0
++        assert doc_matches[0][1] == 0
++        assert sent_matches[0][1] == 0
+diff --git a/tests/context/test_context_component.py b/tests/context/test_context_component.py
+index b57313db..722bb91d 100644
+--- a/tests/context/test_context_component.py
++++ b/tests/context/test_context_component.py
+@@ -449,6 +449,36 @@ def __call__(self, doc):
+         nlp.remove_pipe("custom_span_setter")
+         nlp.remove_pipe("medspacy_context")
+ 
++    def test_match_target_sents_only_multi_sentence(self):
++        """Modifiers in later sentences should be correctly assigned
++        when match_target_sents_only=True. Regression test for a bug
++        where sentence-relative match indices caused modifiers from
++        later sentences to be mapped to wrong document positions."""
++        rules = [
++            ConTextRule("no", "NEGATED_EXISTENCE", direction="FORWARD"),
++            ConTextRule("possible", "POSSIBLE_EXISTENCE", direction="FORWARD"),
++        ]
++        context = ConText(nlp, rules=None, match_target_sents_only=True)
++        context.add(rules)
++
++        doc = nlp("No pneumonia. Possible pneumonia.")
++        doc.ents = (
++            Span(doc, 1, 2, "CONDITION"),
++            Span(doc, 4, 5, "CONDITION"),
++        )
++        context(doc)
++
++        # First entity should be negated, not possible
++        assert doc.ents[0]._.is_negated is True
++        mods_0 = doc.ents[0]._.modifiers
++        assert len(mods_0) == 1
++        assert mods_0[0].category == "NEGATED_EXISTENCE"
++
++        # Second entity should be possible, not negated
++        mods_1 = doc.ents[1]._.modifiers
++        assert len(mods_1) == 1
++        assert mods_1[0].category == "POSSIBLE_EXISTENCE"
++
+     def test_match_target_sents_only(self):
+         rules = [
+             ConTextRule("no evidence", "NEGATED_EXISTENCE")

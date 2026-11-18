@@ -1,0 +1,67 @@
+version = "1.0"
+
+[task]
+name = "default/medspacy__medspacy-119"
+description = "Issue 118 fix ci"
+
+[metadata]
+difficulty = "large"
+category = "bugfix"
+keywords = [
+    "medspacy",
+    "pr_diff",
+]
+
+[metadata.repo2env]
+pipeline = "pr_diff"
+pipeline_version = "0.3.0"
+repo = "medspacy/medspacy"
+ref = "ef151ac163e468159c58cfd7ec391900fac0d809"
+reference = "https://github.com/medspacy/medspacy/pull/119"
+source_access = "auto"
+built_at = "2026-11-18T03:46:34.003404+00:00"
+reward_kinds = [
+    "diff_similarity",
+]
+spec_version = "0.2.0"
+content_hash = "sha256:956d573f2a3a735888922dcb02a733f425cb1bd7c7cbe60294689684d2b781f2"
+
+[metadata.repo2env.pr_diff]
+pr_merged_at = "2022-04-04T15:25:33Z"
+diff_format = "unified"
+context_files = [
+    ".github/workflows/python-app.yml",
+    "medspacy/context/context_component.py",
+    "medspacy/section_detection/sectionizer.py",
+    "resources/section_patterns.json",
+    "tests/context/test_context_component.py",
+    "tests/test_medspacy.py",
+]
+
+[metadata.repo2env.reward_calibration]
+baseline_reward = 0.0
+loc_changed = 109
+difficulty = "large"
+
+[metadata.repo2env.evaluation]
+schema_version = "1"
+status = "unverified"
+stage = "generation"
+reason_codes = [
+    "validation_not_run",
+]
+detail = "Generated task; validation has not been established."
+provenance = "unknown"
+evidence = []
+
+[metadata.repo2env.reproducibility]
+mode = "local_only"
+image_ref = "python:3.12-slim"
+image_tag = "python:3.12-slim"
+image_visibility = "private"
+
+[agent]
+timeout_sec = 1800.0
+
+[verifier]
+timeout_sec = 300.0

@@ -1,0 +1,141 @@
+diff --git a/.github/workflows/python-app.yml b/.github/workflows/python-app.yml
+index 0544910a..5e6f466d 100644
+--- a/.github/workflows/python-app.yml
++++ b/.github/workflows/python-app.yml
+@@ -1,11 +1,8 @@
+-# This workflow will install Python dependencies, run tests and lint with a single version of Python
+-# For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
+-
+ name: medspacy
+ 
+ on:
+   push:
+-    branches: [ master, develop ]
++    branches: [ master, develop, ci_debug ]
+   pull_request:
+     branches: [ master, develop ]
+ 
+@@ -46,23 +43,22 @@ jobs:
+     - name: Set up Python ${{ matrix.python-version }}
+       uses: actions/setup-python@v2
+       with:
+-        python-version: ${{ matrix.python-version }}
+-    - name: Install dependencies
++        python-version: ${{ matrix.python-version }}      
++    - name: Install dependencies      
+       run: |
+         python --version
+-        python -m pip install --upgrade pip
+-        pip install flake8 pytest
+-
++        python -m pip install --upgrade pip        
+         # Install our package to make sure our setup works...
++        pip install -U pip setuptools wheel
++        pip install -U spacy
+         python setup.py install
+-
+         # set up all spacy language models that are used in our pytest tests
+         python -m spacy download de_core_news_sm
+         python -m spacy download en_core_web_sm
+         python -m spacy download en_core_web_md
+         # install scispacy model as well to ensure compatibility
+         pip install https://s3-us-west-2.amazonaws.com/ai2-s2-scispacy/releases/v0.3.0/en_core_sci_sm-0.3.0.tar.gz
+-
++        pip install flake8 pytest
+     - name: Lint with flake8
+       run: |
+         # stop the build if there are Python syntax errors or undefined names
+diff --git a/README.md b/README.md
+index 3bb0811d..0e476964 100644
+--- a/README.md
++++ b/README.md
+@@ -33,13 +33,18 @@ Future work could include I/O, relations extraction, and pre-trained clinical mo
+ 
+ # Usage
+ ## Installation
++
++NOTE: A workaround to a medspacy installation issue is installing spacy BEFORE using pip or setup.py to install medspacy.
++
+ You can install `medspacy` using `setup.py`:
+ ```bash
++pip install spacy
+ python setup.py install
+ ```
+ 
+ Or with pip:
+ ```bash
++pip install spacy
+ pip install medspacy
+ ```
+ 
+diff --git a/setup.py b/setup.py
+index 3f11ad2c..6303e5d2 100644
+--- a/setup.py
++++ b/setup.py
+@@ -10,27 +10,28 @@
+     long_description = f.read()
+ 
+ additional_installs = []
+-if platform.startswith('win'):
+-    print('Not installing QuickUMLS for Windows since it currently requires conda (as opposed to just pip)')
++if platform.startswith("win"):
++    print("Not installing QuickUMLS for Windows since it currently requires conda (as opposed to just pip)")
+ else:
+     # Using a trick from StackOverflow to set an impossibly high version number
+     # to force getting latest from GitHub as opposed to PyPi
+     # since QuickUMLS has not made a release with some recent MedSpacy contributions...
+-    quickumls_package = 'medspacy_quickumls>=2.4.1'
++    quickumls_package = "medspacy_quickumls>=2.4.1"
+     additional_installs.append(quickumls_package)
+-    print('Attempting to install quickumls package: {}'.format(quickumls_package))
++    print("Attempting to install quickumls package: {}".format(quickumls_package))
+ 
+ # function to recursively get files for resourcee
+ def package_files(directory):
+     paths = []
+     for (p, directories, filenames) in os.walk(directory):
+         for filename in filenames:
+-            paths.append(os.path.join('..', p, filename))
++            paths.append(os.path.join("..", p, filename))
+     return paths
+ 
+ 
+ # get all files recursively from /resources
+-resource_files = package_files('./resources')
++resource_files = package_files("./resources")
++
+ 
+ def get_version():
+     """Load the version from version.py, without importing it.
+@@ -38,11 +39,12 @@ def get_version():
+     version string with single quotes.
+     """
+     try:
+-        with open('medspacy/_version.py', 'r') as f:
+-            return f.read().split('\n')[0].split('=')[-1].replace('\'', '').strip()
++        with open("medspacy/_version.py", "r") as f:
++            return f.read().split("\n")[0].split("=")[-1].replace("'", "").strip()
+     except IOError:
+         raise IOError
+ 
++
+ setup(
+     name="medspacy",
+     version=get_version(),
+@@ -52,12 +54,14 @@ def get_version():
+     packages=find_packages(),
+     install_requires=[
+         # NOTE: spacy imports numpy to bootstrap its own setup.py in 2.3.2
+-        "spacy>=3.0.0.0",
++        "spacy<3.1.2,>=3.0",
+         "PyRuSH>=1.0.3.5",
+         "pysbd==0.3.4",
+         "jsonschema",
+         "requests>=2.13.0,<2.16",
+-    ] + additional_installs,
++        "six>=1.14.0",
++    ]
++    + additional_installs,
+     long_description=long_description,
+     long_description_content_type="text/markdown",
+     package_data={"medspacy": resource_files},

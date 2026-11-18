@@ -1,0 +1,74 @@
+version = "1.0"
+
+[task]
+name = "default/medspacy__medspacy-265"
+description = "Merging develop to master, Jan 5 2024"
+
+[metadata]
+difficulty = "large"
+category = "bugfix"
+keywords = [
+    "medspacy",
+    "pr_diff",
+]
+
+[metadata.repo2env]
+pipeline = "pr_diff"
+pipeline_version = "0.3.0"
+repo = "medspacy/medspacy"
+ref = "48f9c957db140650ab53dee3064f60488ed7b864"
+reference = "https://github.com/medspacy/medspacy/pull/265"
+source_access = "auto"
+built_at = "2026-11-18T03:44:23.619068+00:00"
+reward_kinds = [
+    "diff_similarity",
+]
+spec_version = "0.2.0"
+content_hash = "sha256:c1341c541d28e3f53b3bea0514f7f8ccf7d17a106ff7096ab66456bd70210d8e"
+
+[metadata.repo2env.pr_diff]
+pr_merged_at = "2024-01-05T21:44:46Z"
+diff_format = "unified"
+context_files = [
+    ".github/workflows/manual_test_pip.yml",
+    ".github/workflows/packaging.yml",
+    ".github/workflows/python-app.yml",
+    "README.md",
+    "medspacy/VERSION",
+    "medspacy/_version.py",
+    "medspacy/target_matcher/target_matcher.py",
+    "pyproject.toml",
+    "requirements/requirements.txt",
+    "requirements/requirements_tests.txt",
+    "requirements_piptests.txt",
+    "resources/context_rules.json",
+    "setup.py",
+]
+
+[metadata.repo2env.reward_calibration]
+baseline_reward = 0.0
+loc_changed = 179
+difficulty = "large"
+
+[metadata.repo2env.evaluation]
+schema_version = "1"
+status = "unverified"
+stage = "generation"
+reason_codes = [
+    "validation_not_run",
+]
+detail = "Generated task; validation has not been established."
+provenance = "unknown"
+evidence = []
+
+[metadata.repo2env.reproducibility]
+mode = "local_only"
+image_ref = "python:3.12-slim"
+image_tag = "python:3.12-slim"
+image_visibility = "private"
+
+[agent]
+timeout_sec = 1800.0
+
+[verifier]
+timeout_sec = 300.0

@@ -1,0 +1,68 @@
+version = "1.0"
+
+[task]
+name = "default/medspacy__medspacy-150"
+description = "Updating QuickUMLS to version 2.6 which support span groups and there…"
+
+[metadata]
+difficulty = "large"
+category = "bugfix"
+keywords = [
+    "medspacy",
+    "pr_diff",
+]
+
+[metadata.repo2env]
+pipeline = "pr_diff"
+pipeline_version = "0.3.0"
+repo = "medspacy/medspacy"
+ref = "b833a53ab78472ab8f3c10fe4960ef1b76ba6b59"
+reference = "https://github.com/medspacy/medspacy/pull/150"
+source_access = "auto"
+built_at = "2026-11-18T03:46:20.563488+00:00"
+reward_kinds = [
+    "diff_similarity",
+]
+spec_version = "0.2.0"
+content_hash = "sha256:00b20d698aa5d9c05561df6ca5a19e66483451035bf12fb3d6a0754211291d92"
+
+[metadata.repo2env.pr_diff]
+pr_merged_at = "2022-10-06T16:36:28Z"
+diff_format = "unified"
+context_files = [
+    "medspacy/util.py",
+    "notebooks/11-QuickUMLS_Extraction.ipynb",
+    "notebooks/11a-QuickUMLS_Extraction_Defaults.ipynb",
+    "notebooks/11b-QuickUMLS_Extraction_Advanced.ipynb",
+    "setup.py",
+    "tests/quickumls/test_quickumls.py",
+    "windows_and_quickumls.md",
+]
+
+[metadata.repo2env.reward_calibration]
+baseline_reward = 0.0
+loc_changed = 1320
+difficulty = "large"
+
+[metadata.repo2env.evaluation]
+schema_version = "1"
+status = "unverified"
+stage = "generation"
+reason_codes = [
+    "validation_not_run",
+]
+detail = "Generated task; validation has not been established."
+provenance = "unknown"
+evidence = []
+
+[metadata.repo2env.reproducibility]
+mode = "local_only"
+image_ref = "python:3.12-slim"
+image_tag = "python:3.12-slim"
+image_visibility = "private"
+
+[agent]
+timeout_sec = 1800.0
+
+[verifier]
+timeout_sec = 300.0

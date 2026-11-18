@@ -1,0 +1,96 @@
+diff --git a/medspacy/util.py b/medspacy/util.py
+index 8901e508..43f39d1e 100644
+--- a/medspacy/util.py
++++ b/medspacy/util.py
+@@ -11,6 +11,8 @@
+ import spacy
+ from spacy import Language
+ 
++from quickumls import spacy_component
++
+ DEFAULT_PIPE_NAMES = {
+     "medspacy_tokenizer",
+     "medspacy_pyrush",
+@@ -23,14 +25,14 @@
+     "medspacy_preprocessor",
+     "medspacy_pyrush",
+     "medspacy_target_matcher",
+-    # "medspacy_quickumls", # quickumls still not included by default due to install issues
++    "medspacy_quickumls",
+     "medspacy_context",
+     "medspacy_sectionizer",
+     "medspacy_postprocessor",
+     "medspacy_doc_consumer",
+ }
+ 
+-
++# just commit to trigger another check workflow action to see what hold back the tests from passing
+ def load(
+     model: Union[Literal["default"], str, Language] = "default",
+     medspacy_enable: Union[Literal["all", "default"], Iterable[str]] = "default",
+@@ -47,6 +49,7 @@ def load(
+         - "medspacy_pyrush": PyRuSH Sentencizer for sentence splitting
+         - "medspacy_target_matcher": TargetMatcher for extended pattern matching
+         - "medspacy_context": ConText for attribute assertion
++        - "medspacy_quickumls": QuickUMLS for UMLS concept mapping
+     Args:
+         model: The base spaCy model to load. If 'default', will instantiate from a blank 'en' model. If it is a spaCy
+             language model, then it will simply add medspaCy components to the existing pipeline. If it is a string
+@@ -103,15 +106,6 @@ def load(
+         nlp.add_pipe("medspacy_target_matcher")
+ 
+     if "medspacy_quickumls" in medspacy_enable:
+-        # NOTE: This could fail if a user requests this and QuickUMLS cannot be found
+-        # but if it's requested at this point, let's load it
+-        if "medspacy_quickumls" in medspacy_enable:
+-            # NOTE: This could fail if a user requests this and QuickUMLS cannot be found
+-            # but if it's requested at this point, let's load it
+-            from quickumls import spacy_component
+-
+-        # let's see if we need to supply a path for QuickUMLS.  If none is provided,
+-        # let's point to the demo data
+         if quickumls_path is None:
+             quickumls_path = get_quickumls_demo_dir()
+ 
+diff --git a/tests/quickumls/test_quickumls_entity.py b/tests/quickumls/test_quickumls_entity.py
+index c6b91b43..a9898f3d 100644
+--- a/tests/quickumls/test_quickumls_entity.py
++++ b/tests/quickumls/test_quickumls_entity.py
+@@ -13,8 +13,6 @@
+ 
+ 
+ class TestQuickUMLSEntity:
+-
+-    # @pytest.mark.skip(reason="quickumls not enabled for spacy v3")
+     def test_initialize_pipeline(self):
+         """
+         Test that a pipeline with a QuickUMLS component can be loaded in medpacy
+@@ -31,7 +29,6 @@ def test_initialize_pipeline(self):
+         # Check that the simstring database exists
+         assert quickumls.quickumls.ss_db
+ 
+-    # @pytest.mark.skip(reason="quickumls not enabled for spacy v3")
+     def test_quickumls_extractions(self):
+         """
+         Test that extractions can be performed using the very small (<100 concept) UMLS sample resources
+diff --git a/tests/test_medspacy.py b/tests/test_medspacy.py
+index 922724e5..6c01ee04 100644
+--- a/tests/test_medspacy.py
++++ b/tests/test_medspacy.py
+@@ -57,7 +57,7 @@ def test_load_all_component_names(self):
+             "medspacy_preprocessor",
+             "medspacy_pyrush",
+             "medspacy_target_matcher",
+-            # "medspacy_quickumls", # quickumls still not included by default due to install issues
++            "medspacy_quickumls",
+             "medspacy_context",
+             "medspacy_sectionizer",
+             "medspacy_postprocessor",
+@@ -70,6 +70,7 @@ def test_load_all_components(self):
+         full_pipe_names = [
+             "medspacy_pyrush",
+             "medspacy_target_matcher",
++            "medspacy_quickumls",
+             "medspacy_context",
+             "medspacy_sectionizer",
+             "medspacy_postprocessor",

@@ -14,7 +14,6 @@ MIT-LCP/mimic-code
 wuyoscar/Internal-Safety-Collapse
 LichAmnesia/GPT-Prompt-Hub
 beita6969/ScienceClaw
-medspacy/medspacy
 AgentTeam-TaichuAI/ScienceClaw
 genomoncology/biomcp
 ncbi-nlp/BioSentVec

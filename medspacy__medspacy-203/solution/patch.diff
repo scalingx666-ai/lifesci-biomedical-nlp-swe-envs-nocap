@@ -1,0 +1,392 @@
+diff --git a/.github/workflows/manual_test_multiversion.yml b/.github/workflows/manual_test_multiversion.yml
+index 7e9cf6ae..8ada18a5 100644
+--- a/.github/workflows/manual_test_multiversion.yml
++++ b/.github/workflows/manual_test_multiversion.yml
+@@ -7,46 +7,29 @@ jobs:
+   build:
+   
+     # TODO: Do we care if this only runs on allowed branches since we check push/pull_request above?
+-    #if: github.ref == 'refs/heads/master' OR github.ref == 'refs/heads/develop'
+-
+-    runs-on: ${{ matrix.os }}
++    #if: github.ref == 'refs/heads/master' OR github.ref == 'refs/heads/develop
+ 
+     strategy:
+       matrix:
+-        # removed 3.5 since there appears to be a failure with setuptools
+-        python-version: [3.8, 3.9, 3.10.x]
+-        #os: [ubuntu-latest, macos-latest, windows-2019]
+-        include:
+-          - name: "Ubuntu Python 3.8"
+-            os: ubuntu-latest
+-            addons:
+-              apt:
+-                update: true
+-                packages:
+-                  # These are the required system level updates for Ubuntu and spacy:
+-                  # https://spacy.io/usage#source-ubuntu
+-                  - build-essential
+-                  - python-dev
+-          - name: "MacOS Python 3.8"
+-            os: macos-latest
+-            python-version: 3.8
+-          - name: "Windows Python 3.8"
+-            os: windows-2019
+-            python-version: 3.8
++        os: [ubuntu-latest, macos-latest, windows-latest]
++        python-version: [3.8, 3.9, "3.10.x", "3.11.x"]
++    runs-on: ${{ matrix.os }}
+ 
+     steps:
+-    - uses: actions/checkout@v2
++    - uses: actions/checkout@v3
+     - name: Set up Python ${{ matrix.python-version }}
+-      uses: actions/setup-python@v2
++      uses: actions/setup-python@v4
+       with:
+-        python-version: ${{ matrix.python-version }}      
++        python-version: ${{ matrix.python-version }} 
++        cache: 'pip'
++        cache-dependency-path: 'requirements_tests.txt'    
+     - name: Install dependencies      
+       run: |
+         python --version
+         python -m pip install --upgrade pip        
+         # Install our package to make sure our setup works...
+-        pip install -U pip setuptools wheel
+-        python setup.py install
++        python -m pip install --use-pep517 -r requirements_tests.txt
++        python -m pip install .
+         # set up all spacy language models that are used in our pytest tests
+         python -m spacy download de_core_news_sm
+         python -m spacy download en_core_web_sm
+@@ -56,15 +39,7 @@ jobs:
+         python -m spacy download pl_core_news_sm
+         python -m spacy download de_core_news_sm
+         python -m spacy download xx_ent_wiki_sm
+-        # install scispacy model as well to ensure compatibility
+-        pip install https://s3-us-west-2.amazonaws.com/ai2-s2-scispacy/releases/v0.3.0/en_core_sci_sm-0.3.0.tar.gz
+-        pip install flake8 pytest
+-        # we want to test execution of jupyter notebooks in pytest as well
+-        pip install ipywidgets
+-        pip install pyodbc
+-        pip install jupyterlab
+-        pip install nltk
+-        pip install pandas
++
+     - name: Lint with flake8
+       run: |
+         # stop the build if there are Python syntax errors or undefined names
+@@ -73,4 +48,4 @@ jobs:
+         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+     - name: Test with pytest
+       run: |
+-        pytest
++        pytest
+\ No newline at end of file
+diff --git a/.github/workflows/manual_test_pip.yml b/.github/workflows/manual_test_pip.yml
+index 6f1b0fdf..69fe5000 100644
+--- a/.github/workflows/manual_test_pip.yml
++++ b/.github/workflows/manual_test_pip.yml
+@@ -4,54 +4,36 @@ on:
+   workflow_dispatch
+ 
+ jobs:
+-  build:
++  test_win:
+   
+     # TODO: Do we care if this only runs on allowed branches since we check push/pull_request above?
+     #if: github.ref == 'refs/heads/master' OR github.ref == 'refs/heads/develop'
+ 
+-    runs-on: ${{ matrix.os }}
+-
+     strategy:
+       matrix:
+-        # removed 3.5 since there appears to be a failure with setuptools
+-        python-version: [3.8, 3.9, 3.10.x]
+-        #os: [ubuntu-latest, macos-latest, windows-2019]
+-        include:
+-          - name: "Ubuntu Python 3.8"
+-            os: ubuntu-latest
+-            addons:
+-              apt:
+-                update: true
+-                packages:
+-                  # These are the required system level updates for Ubuntu and spacy:
+-                  # https://spacy.io/usage#source-ubuntu
+-                  - build-essential
+-                  - python-dev
+-          - name: "MacOS Python 3.8"
+-            os: macos-latest
+-            python-version: 3.8
+-          - name: "Windows Python 3.8"
+-            os: windows-2019
+-            python-version: 3.8
++        os: [windows-latest]
++        python-version: [3.8, 3.9, "3.10.x", "3.11.x"]
++    runs-on: ${{ matrix.os }}
+ 
+     steps:
+-    - uses: actions/checkout@v2
+-    - name: Set up Python ${{ matrix.python-version }}
+-      uses: actions/setup-python@v2
+-      with:
+-        python-version: ${{ matrix.python-version }}      
+-    - name: Install dependencies      
++    - uses: actions/checkout@v3
++    - name: check clone
+       run: |
++        pwd
++        ls
++        python -c "import shutil;shutil.rmtree('medspacy')"
++        ls
++
++    - uses: conda-incubator/setup-miniconda@v2
++      with:
++        auto-update-conda: true
++        python-version: ${{ matrix.python-version }}
++    - run: |
++        conda install -c conda-forge libiconv
++        conda list
+         python --version
+-        python -m pip install --upgrade pip        
+-        # Install our package to make sure our setup works...
+-        pip install medspacy
+-        pip install ipywidgets
+-        pip install pyodbc
+-        pip install jupyterlab
+-        pip install nltk
+-        pip install pandas        
+-        # set up all spacy language models that are used in our pytest tests
++        pip install --upgrade pip
++        pip install --use-pep517 -r requirements_piptests.txt
+         python -m spacy download de_core_news_sm
+         python -m spacy download en_core_web_sm
+         python -m spacy download en_core_web_md
+@@ -60,19 +42,51 @@ jobs:
+         python -m spacy download pl_core_news_sm
+         python -m spacy download de_core_news_sm
+         python -m spacy download xx_ent_wiki_sm
+-        # install scispacy model as well to ensure compatibility
+-        pip install https://s3-us-west-2.amazonaws.com/ai2-s2-scispacy/releases/v0.3.0/en_core_sci_sm-0.3.0.tar.gz
+-        pip install flake8 pytest
+-        # we want to test execution of jupyter notebooks in pytest as well
+ 
+-    - name: Lint with flake8
+-      run: |
+-        # stop the build if there are Python syntax errors or undefined names
+-        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+-        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
+-        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+     - name: Test with pytest
++      run: |        
++        pytest
++
++  test_linux_mac:
++  
++    # TODO: Do we care if this only runs on allowed branches since we check push/pull_request above?
++    #if: github.ref == 'refs/heads/master' OR github.ref == 'refs/heads/develop'
++
++    strategy:
++      matrix:
++        os: [ubuntu-latest, macos-latest]
++        python-version: [3.8, 3.9, "3.10.x", "3.11.x"]
++    runs-on: ${{ matrix.os }}
++
++    steps:
++    - uses: actions/checkout@v3
++    - name: check clone
+       run: |
+-        ls medspacy        
++        pwd
++        ls
+         python -c "import shutil;shutil.rmtree('medspacy')"
++        ls
++
++    - name: Set up Python ${{ matrix.python-version }}  ${{ matrix.os }}
++      uses: actions/setup-python@v4
++      with:
++        python-version: ${{ matrix.python-version }}   
++        cache: 'pip'   
++        cache-dependency-path: 'requirements_piptests.txt'
++    - run: |
++        python --version
++        pip install --upgrade pip
++        pip install --use-pep517 -r requirements_piptests.txt
++        python -m spacy download de_core_news_sm
++        python -m spacy download en_core_web_sm
++        python -m spacy download en_core_web_md
++        # multilingual models for testing compatibility
++        python -m spacy download es_core_news_sm
++        python -m spacy download pl_core_news_sm
++        python -m spacy download de_core_news_sm
++        python -m spacy download xx_ent_wiki_sm
++
++    - name: Test with pytest
++      run: |        
+         pytest
++
+diff --git a/medspacy/postprocess/postprocessing_pattern.py b/medspacy/postprocess/postprocessing_pattern.py
+index 483b9192..b73db235 100644
+--- a/medspacy/postprocess/postprocessing_pattern.py
++++ b/medspacy/postprocess/postprocessing_pattern.py
+@@ -9,7 +9,7 @@ class PostprocessingPattern:
+     in the later Postprocessor as part of PostprocessingRules.
+     """
+ 
+-    def __init__(self, condition: Callable, success_value: Any, **kwargs):
++    def __init__(self, condition: Callable, success_value: Any = True, **kwargs):
+         """
+         A PostprocessingPattern defines a single condition to check against an entity.
+ 
+diff --git a/medspacy/target_matcher/concept_tagger.py b/medspacy/target_matcher/concept_tagger.py
+index 1b9ad5d3..1b17dac2 100644
+--- a/medspacy/target_matcher/concept_tagger.py
++++ b/medspacy/target_matcher/concept_tagger.py
+@@ -36,14 +36,12 @@ def __init__(
+         self._attr_name = attr_name
+         self.__matcher = MedspacyMatcher(nlp, name=name)
+ 
+-        # If the token attribute hasn't been set, add it now
+-        # try:
+-        #     Token.set_extension(attr_name, default="")
+-        # except:
+-        #     pass
+-
+-        # not sure if silent errors here are beneficial, removing try statement for now.
+-        Token.set_extension(self._attr_name, default="")
++        # If the token attribute hasn't been registered, add it now
++        # If it has already been set, then we can pass.
++        # This will happen, for example, if you've already instantiated
++        # the ConceptTagger and it registered the attribute.
++        if not Token.has_extension(attr_name):
++            Token.set_extension(attr_name, default="")
+ 
+     @property
+     def attr_name(self) -> str:
+diff --git a/pyproject.toml b/pyproject.toml
+new file mode 100644
+index 00000000..dcd082f5
+--- /dev/null
++++ b/pyproject.toml
+@@ -0,0 +1,36 @@
++[build-system]
++requires = ["setuptools>=61.0.0", "setuptools_scm[toml]>=6.2", "wheel"]
++build-backend = "setuptools.build_meta"
++
++[project]
++name = "medspacy"
++dynamic = ["version"]
++authors = [{name = "medSpaCy"}]
++description = "Library for clinical NLP with spaCy."
++requires-python = ">=3.8"
++license = { file = "LICENSE" }
++classifiers = [
++    "License :: OSI Approved :: MIT License",
++    "Programming Language :: Python :: 3",
++]
++
++dependencies = [
++    "spacy >= 3.4.1, < 4.0",
++    "PyRuSH >= 1.0.8",
++    "pysbd == 0.3.4",
++    "jsonschema",
++    "medspacy_quickumls == 2.7; sys_platform != 'win32'"
++]
++
++[project.urls]
++Source = "https://github.com/medspacy/medspacy"
++
++[tool.setuptools]
++include-package-data = true
++
++[tool.setuptools.packages.find]
++where = ["resources"]
++
++[tool.setuptools_scm]
++write_to = "medspacy/_version.py"
++
+diff --git a/requirements_piptests.txt b/requirements_piptests.txt
+new file mode 100644
+index 00000000..d2d95e9f
+--- /dev/null
++++ b/requirements_piptests.txt
+@@ -0,0 +1,9 @@
++medspacy
++ipywidgets
++pyodbc
++jupyterlab
++nltk
++medspacy_quickumls==2.7
++pandas        
++https://s3-us-west-2.amazonaws.com/ai2-s2-scispacy/releases/v0.3.0/en_core_sci_sm-0.3.0.tar.gz
++pytest
+diff --git a/requirements_tests.txt b/requirements_tests.txt
+new file mode 100644
+index 00000000..48ad8961
+--- /dev/null
++++ b/requirements_tests.txt
+@@ -0,0 +1,8 @@
++ipywidgets
++pyodbc
++jupyterlab
++nltk
++pandas    
++pytest
++flake8    
++https://s3-us-west-2.amazonaws.com/ai2-s2-scispacy/releases/v0.3.0/en_core_sci_sm-0.3.0.tar.gz
+diff --git a/setup.py b/setup.py
+index 298f9147..2dd32223 100644
+--- a/setup.py
++++ b/setup.py
+@@ -62,7 +62,7 @@ def get_version():
+     author="medSpaCy",
+     packages=find_packages(),
+     install_requires=[
+-        "spacy>=3.4.1,<4.0.0",
++        "spacy>=3.4.1, <4.*",
+         "PyRuSH>=1.0.8",
+         "pysbd==0.3.4",
+         "jsonschema",
+diff --git a/tests/target_matcher/test_concept_tagger.py b/tests/target_matcher/test_concept_tagger.py
+new file mode 100644
+index 00000000..4323ff74
+--- /dev/null
++++ b/tests/target_matcher/test_concept_tagger.py
+@@ -0,0 +1,35 @@
++import spacy
++from spacy.tokens import Token
++from medspacy.target_matcher import ConceptTagger
++
++
++import tempfile
++
++tmpdirname = tempfile.TemporaryDirectory()
++
++
++
++class TestMedSpaCyExtensions:
++
++    def test_concept_tagger_set_concept_tag_attr(self):
++        nlp = spacy.blank("en")
++        assert Token.has_extension("concept_tag") is False
++        concept_tagger = nlp.add_pipe("medspacy_concept_tagger")
++        assert Token.has_extension("concept_tag") is True
++
++    def test_concept_tagger_set_concept_tag_attr_twice(self):
++        """Make sure that you can instantiate the ConceptTagger twice
++        and spaCy doesn't throw an error about the attribute."""
++        nlp = spacy.blank("en")
++        concept_tagger = nlp.add_pipe("medspacy_concept_tagger")
++        nlp.remove_pipe("medspacy_concept_tagger")
++        nlp.add_pipe("medspacy_concept_tagger")
++
++    def test_concept_tagger_set_custom_attr(self):
++        nlp = spacy.blank("en")
++        attr_name = "my_attre"
++        assert Token.has_extension(attr_name) is False
++        concept_tagger = nlp.add_pipe("medspacy_concept_tagger", config=dict(attr_name=attr_name))
++        assert Token.has_extension(attr_name) is True
++
++       
+\ No newline at end of file

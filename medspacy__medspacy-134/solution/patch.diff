@@ -1,0 +1,335 @@
+diff --git a/medspacy/context/__init__.py b/medspacy/context/__init__.py
+index 504df265..91e0c8e5 100644
+--- a/medspacy/context/__init__.py
++++ b/medspacy/context/__init__.py
+@@ -1,6 +1,15 @@
+ from .context_component import ConTextComponent, DEFAULT_RULES_FILEPATH, DEFAULT_ATTRS
+ from .context_rule import ConTextRule
++from .context_graph import ConTextGraph
++from .context_modifier import ConTextModifier
+ from .context_item import ConTextItem
+ from ._version import __version__
+ 
+-__all__ = ["ConTextComponent", "ConTextRule", "DEFAULT_RULES_FILEPATH"]
++__all__ = [
++    "ConTextComponent",
++    "ConTextRule",
++    "DEFAULT_RULES_FILEPATH",
++    "ConTextGraph",
++    "ConTextModifier",
++    "ConTextItem"
++]
+\ No newline at end of file
+diff --git a/medspacy/context/context_graph.py b/medspacy/context/context_graph.py
+index 0f9462bf..1a45cb1f 100644
+--- a/medspacy/context/context_graph.py
++++ b/medspacy/context/context_graph.py
+@@ -1,8 +1,11 @@
++from __future__ import annotations
++from typing import Optional, List, Dict, Any
++import srsly
+ class ConTextGraph:
+-    def __init__(self, remove_overlapping_modifiers=False):
+-        self.targets = []
+-        self.modifiers = []
+-        self.edges = []
++    def __init__(self, targets:Optional[List]=None, modifiers:Optional[List]=None, edges:Optional[List]=None, remove_overlapping_modifiers=False):
++        self.targets = targets if targets is not None else []
++        self.modifiers = modifiers if modifiers is not None else []
++        self.edges = edges if edges is not None else []
+         self.remove_overlapping_modifiers = remove_overlapping_modifiers
+ 
+     def update_scopes(self):
+@@ -59,7 +62,24 @@ def apply_modifiers(self):
+         self.edges = edges
+ 
+     def __repr__(self):
+-        return "<ConTextGraph> with {0} targets and {1} modifiers".format(len(self.targets), len(self.modifiers))
++        return "<ConTextGraph> with {0} targets and {1} modifiers".format(
++            len(self.targets), len(self.modifiers)
++        )
++
++    def serialized_representation(self) -> Dict[str, Any]:
++        """
++        Returns the serialized representation of the ConTextGraph
++        """
++        return self.__dict__
++
++    @classmethod
++    def from_serialized_representation(cls, serialized_representation) -> ConTextGraph:
++        """
++        Creates the ConTextGraph from the serialized representation
++        """
++        context_graph = ConTextGraph(**serialized_representation)
++
++        return context_graph
+ 
+ 
+ def overlap_target_modifiers(span1, span2):
+@@ -74,3 +94,16 @@ def overlap_target_modifiers(span1, span2):
+ 
+ def _spans_overlap(span1, span2):
+     return (span1.end > span2.start and span1.end <= span2.end) or (span1.start >= span2.start and span1.start < span2.end)
++
++@srsly.msgpack_encoders("context_graph")
++def serialize_context_graph(obj, chain=None):
++    if isinstance(obj, ConTextGraph):
++        return {"context_graph": obj.serialized_representation()}
++    return obj if chain is None else chain(obj)
++
++
++@srsly.msgpack_decoders("context_graph")
++def deserialize_context_graph(obj, chain=None):
++    if "context_graph" in obj:
++        return ConTextGraph.from_serialized_representation(obj["context_graph"])
++    return obj if chain is None else chain(obj) 
+\ No newline at end of file
+diff --git a/medspacy/context/context_modifier.py b/medspacy/context/context_modifier.py
+index fe8c25a1..2781b661 100644
+--- a/medspacy/context/context_modifier.py
++++ b/medspacy/context/context_modifier.py
+@@ -1,9 +1,13 @@
++from __future__ import annotations
++from medspacy.context.context_rule import ConTextRule
++import srsly
++
+ class ConTextModifier:
+     """Represents a concept found by ConText in a document.
+     Is the result of ConTextRule matching a span of text in a Doc.
+     """
+ 
+-    def __init__(self, context_rule, start, end, doc, _use_context_window=False):
++    def __init__(self, context_rule, start, end, doc, _scope_start=None, _scope_end=None, _use_context_window=False):
+         """Create a new ConTextModifier from a document span.
+ 
+         context_item (int): The ConTextRule object which defines the modifier.
+@@ -20,10 +24,10 @@ def __init__(self, context_rule, start, end, doc, _use_context_window=False):
+         self._num_targets = 0
+ 
+         self._use_context_window = _use_context_window
+-        self._scope_start = None
+-        self._scope_end = None
+-
+-        self.set_scope()
++        self._scope_start = _scope_start
++        self._scope_end = _scope_end
++        if self._scope_end is None or self._scope_start is None:
++            self.set_scope()
+ 
+     @property
+     def span(self):
+@@ -300,4 +304,61 @@ def __len__(self):
+         return len(self.span)
+ 
+     def __repr__(self):
+-        return f"<ConTextModifier> [{self.span}, {self.category}]"
++        return f"<ConTextModifier> [{self.start}, {self.end}, {self.category}]"
++
++    def serialized_representation(self):
++        """
++        Serialized Representation of the modifier
++        """
++
++        KEYS_TO_KEEP = ["start", "end", "_use_context_window", "_scope_start", "_scope_end"]
++
++        modifier_dict = self.__dict__
++
++        rule_dict = modifier_dict["_context_rule"].to_dict()
++
++        dict_repr = dict((key, modifier_dict[key]) for key in KEYS_TO_KEEP)
++        dict_repr["context_rule"] = rule_dict
++
++        return dict_repr
++
++    @classmethod
++    def from_serialized_representation(cls, serialized_representation) -> ConTextModifier:
++        """
++        Instantiates the class from the serialized representation
++        """
++        rule = ConTextRule.from_dict(serialized_representation["context_rule"])
++
++        serialized_representation["context_rule"] = rule
++        serialized_representation["doc"] = None #TODO: remove the dependency of ConTextModifier on Doc
++
++        return ConTextModifier(**serialized_representation)
++
++
++@srsly.msgpack_encoders("modifiers")
++def serialize_modifiers(obj, chain=None):
++    if isinstance(obj, list) and isinstance(obj[0], ConTextModifier):
++        return {"modifiers": [modifier.serialized_representation() for modifier in obj]}
++    return obj if chain is None else chain(obj)
++
++
++@srsly.msgpack_encoders("modifier")
++def serialize_modifier(obj, chain=None):
++    if isinstance(obj, ConTextModifier):
++        return obj.serialized_representation()
++    return obj if chain is None else chain(obj)
++
++
++@srsly.msgpack_decoders("modifiers")
++def deserialize_modifiers(obj, chain=None):
++    if "modifiers" in obj:
++        obj["modifiers"] = [ConTextModifier.from_serialized_representation(serialized_modifier) for serialized_modifier in obj["modifiers"]]
++        return obj
++    return obj if chain is None else chain(obj)
++
++
++@srsly.msgpack_decoders("modifier")
++def deserialize_modifier(obj, chain=None):
++    if "modifier" in obj:
++        return ConTextModifier.from_serialized_representation(obj["modifier"])
++    return obj if chain is None else chain(obj) 
+\ No newline at end of file
+diff --git a/medspacy/section_detection/section.py b/medspacy/section_detection/section.py
+index 378b6edb..97e612b6 100644
+--- a/medspacy/section_detection/section.py
++++ b/medspacy/section_detection/section.py
+@@ -1,4 +1,6 @@
+ import json
++from medspacy.section_detection.section_rule import SectionRule
++import srsly
+ 
+ 
+ class Section(object):
+@@ -13,7 +15,10 @@ def __init__(self, doc, category, title_start, title_end, body_start, body_end,
+         self.rule = rule
+ 
+     def __repr__(self):
+-        return f"""Section(category={self.category}, title={self.title_span}, body={self.body_span}, parent={self.parent}, rule={self.rule})"""
++        if self.doc is not None:
++            return f"""Section(category={self.category}, title={self.title_span}, body={self.body_span}, parent={self.parent}, rule={self.rule})"""
++        else:
++            return f"""Section(category={self.category} at {self.title_start} : {self.title_end} in the doc with a body at {self.body_start} : {self.body_end} based on the rule {self.rule}"""
+ 
+     @property
+     def title_span(self):
+@@ -42,3 +47,40 @@ def from_disk(self, path, **cfg):
+         with data_path.open("r", encoding="utf8") as f:
+             self.data = json.loads(f)
+         return self
++
++    def serialized_representation(self):
++
++        rule = self.rule
++
++        return {
++            "category": self.category,
++            "title_start": self.title_start,
++            "title_end": self.title_end,
++            "body_start": self.body_start,
++            "body_end": self.body_end,
++            "parent": self.parent,
++            "rule": rule.to_dict() if rule is not None else None,
++        }
++
++    @classmethod
++    def from_serialized_representation(cls, serialized_representation):
++        rule = SectionRule.from_dict(serialized_representation["rule"])
++        serialized_representation["doc"] = None #TODO: Unhack this
++
++        section = Section(**{k:v for k,v in serialized_representation.items() if k not in ["rule"]})
++        section.rule = rule
++
++        return section
++
++@srsly.msgpack_encoders("section")
++def serialize_section(obj, chain=None):
++    if isinstance(obj, Section):
++        return {"section": obj.serialized_representation()}
++    return obj if chain is None else chain(obj)
++
++
++@srsly.msgpack_decoders("section")
++def deserialize_section(obj, chain=None):
++    if "section" in obj:
++        return Section.from_serialized_representation(obj["section"])
++    return obj if chain is None else chain(obj)
+\ No newline at end of file
+diff --git a/tests/serialization/test_serialization.py b/tests/serialization/test_serialization.py
+new file mode 100644
+index 00000000..c3721eed
+--- /dev/null
++++ b/tests/serialization/test_serialization.py
+@@ -0,0 +1,80 @@
++from typing import List
++import pytest
++import spacy
++import srsly
++from spacy.tokens import Span, Doc
++from medspacy.context import ConTextRule, ConTextGraph, ConTextModifier
++from medspacy.section_detection import Section, SectionRule, Sectionizer
++
++Span.set_extension("modifiers", default=(), force=True)
++Doc.set_extension("context_graph", default=None, force=True)
++
++@pytest.fixture(scope="module")
++def nlp():
++    nlp = spacy.load("en_core_web_sm")
++    return nlp
++
++class TestSerialization:
++
++    @pytest.fixture(scope="class")
++    def doc_with_context(self, nlp) -> ConTextGraph:
++        doc = nlp.tokenizer("There is no evidence of pneumonia but there is chf.")
++        doc[0].is_sent_start = True
++        for token in doc[1:]:
++            token.is_sent_start = False
++        item_data1 = ConTextRule("no evidence of", "DEFINITE_NEGATED_EXISTENCE", "forward")
++        tag_object1 = ConTextModifier(item_data1, 2, 5, doc)
++
++        item_data2 = ConTextRule("evidence of", "DEFINITE_EXISTENCE", "forward")
++        tag_object2 = ConTextModifier(item_data2, 3, 5, doc)
++
++        item_data3 = ConTextRule("but", "TERMINATE", "TERMINATE")
++        tag_object3 = ConTextModifier(item_data3, 6, 7, doc)
++
++        graph = ConTextGraph()
++        graph.modifiers = [tag_object1, tag_object2, tag_object3]
++        doc._.context_graph = graph
++        return doc
++
++    @pytest.fixture(scope="class")
++    def doc_with_sections(self, nlp) -> List[Section]:
++        sectionizer = Sectionizer(
++            nlp, rules=None, add_attrs={"past_medical_history": {"is_negated": True}}
++        )
++        sectionizer.add([SectionRule("Past Medical History:", "past_medical_history")])
++        doc = nlp("Past Medical History: Pneumonia")
++
++        doc.ents = (Span(doc, 4, 5, "CONDITION"),)
++        doc = sectionizer(doc)
++        return doc
++
++    def test_serialize_context_modifier(self, nlp):
++        doc = nlp.tokenizer("There is no evidence of pneumonia but there is chf.")
++        doc[0].is_sent_start = True
++        for token in doc[1:]:
++            token.is_sent_start = False
++        item_data2 = ConTextRule("evidence of", "DEFINITE_EXISTENCE", "forward")
++        tag_object2 = ConTextModifier(item_data2, 3, 5, doc)
++
++        serialized = srsly.msgpack_dumps({"modifier": tag_object2})
++
++        deserialized = srsly.msgpack_loads(serialized)
++
++        assert isinstance(deserialized,ConTextModifier)
++
++    def test_serialize_doc_with_sections(self, doc_with_sections):
++        vocab = doc_with_sections.vocab
++        serialized_doc = doc_with_sections.to_bytes()
++        deserialized_doc = Doc(vocab).from_bytes(serialized_doc)
++
++        assert len(deserialized_doc._.sections) > 0 
++        assert isinstance(deserialized_doc._.sections[0], Section)
++
++    def test_serialize_doc_with_context(self, doc_with_context):
++        vocab = doc_with_context.vocab
++        serialized_doc = doc_with_context.to_bytes()
++        deserialized_doc = Doc(vocab).from_bytes(serialized_doc)
++
++        assert isinstance(deserialized_doc._.context_graph, ConTextGraph)
++        assert len(deserialized_doc._.context_graph.modifiers) > 0
++        assert isinstance(deserialized_doc._.context_graph.modifiers[0], ConTextModifier)

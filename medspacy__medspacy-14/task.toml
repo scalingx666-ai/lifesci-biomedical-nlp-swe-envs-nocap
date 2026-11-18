@@ -1,0 +1,69 @@
+version = "1.0"
+
+[task]
+name = "default/medspacy__medspacy-14"
+description = "Subsections"
+
+[metadata]
+difficulty = "large"
+category = "bugfix"
+keywords = [
+    "medspacy",
+    "pr_diff",
+]
+
+[metadata.repo2env]
+pipeline = "pr_diff"
+pipeline_version = "0.3.0"
+repo = "medspacy/medspacy"
+ref = "f59bbace422d2ea49e7122cd934eb38600c850e1"
+reference = "https://github.com/medspacy/medspacy/pull/14"
+source_access = "auto"
+built_at = "2026-11-18T03:47:21.999928+00:00"
+reward_kinds = [
+    "diff_similarity",
+]
+spec_version = "0.2.0"
+content_hash = "sha256:984c52b17b919d7922bec037294774eb542269ff7960056dae9be83863483740"
+
+[metadata.repo2env.pr_diff]
+pr_merged_at = "2020-10-24T14:53:09Z"
+diff_format = "unified"
+context_files = [
+    "medspacy/__init__.py",
+    "medspacy/_version.py",
+    "medspacy/custom_tokenizer.py",
+    "medspacy/postprocess.py",
+    "medspacy/util.py",
+    "medspacy/visualization.py",
+    "setup.py",
+    "tests/test_medspacy.py",
+]
+
+[metadata.repo2env.reward_calibration]
+baseline_reward = 0.0
+loc_changed = 154
+difficulty = "large"
+
+[metadata.repo2env.evaluation]
+schema_version = "1"
+status = "unverified"
+stage = "generation"
+reason_codes = [
+    "validation_not_run",
+]
+detail = "Generated task; validation has not been established."
+provenance = "unknown"
+evidence = []
+
+[metadata.repo2env.reproducibility]
+mode = "local_only"
+image_ref = "python:3.12-slim"
+image_tag = "python:3.12-slim"
+image_visibility = "private"
+
+[agent]
+timeout_sec = 1800.0
+
+[verifier]
+timeout_sec = 300.0

@@ -1,0 +1,16 @@
+diff --git a/setup.py b/setup.py
+index 0ded9f76..35609078 100644
+--- a/setup.py
++++ b/setup.py
+@@ -56,8 +56,9 @@ def get_version():
+     author="medSpaCy",
+     packages=find_packages(),
+     install_requires=required,
+-    long_description=long_description,
+-    long_description_content_type="text/markdown",
++    # TODO: Fix this later for a richer description
++    #long_description=long_description,
++    #long_description_content_type="text/markdown",
+     package_data={"medspacy": resource_files},
+     python_requires=">=3.8.0",
+ )

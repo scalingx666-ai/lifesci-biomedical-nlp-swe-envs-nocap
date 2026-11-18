@@ -1,0 +1,23 @@
+diff --git a/resources/context_rules.json b/resources/context_rules.json
+index da50f37f..37d4b07f 100644
+--- a/resources/context_rules.json
++++ b/resources/context_rules.json
+@@ -1370,6 +1370,18 @@
+       "literal": "worried about",
+       "pattern": null,
+       "direction": "FORWARD"
++    },
++    {
++      "category": "NEGATED_EXISTENCE",
++      "literal": ": none",
++      "pattern": null,
++      "direction": "BACKWARD"
++    },
++    {
++      "category": "NEGATED_EXISTENCE",
++      "literal": ": no",
++      "pattern": null,
++      "direction": "BACKWARD"
+     }
+   ]
+ }

@@ -1,0 +1,71 @@
+version = "1.0"
+
+[task]
+name = "default/medspacy__medspacy-227"
+description = "Preparing some candidate changes to use 3.0 of medspacy_quickumls whi…"
+
+[metadata]
+difficulty = "large"
+category = "bugfix"
+keywords = [
+    "medspacy",
+    "pr_diff",
+]
+
+[metadata.repo2env]
+pipeline = "pr_diff"
+pipeline_version = "0.3.0"
+repo = "medspacy/medspacy"
+ref = "620fe4710bfb3809b57f2ca791f7845d1f648899"
+reference = "https://github.com/medspacy/medspacy/pull/227"
+source_access = "auto"
+built_at = "2026-11-18T03:44:57.015221+00:00"
+reward_kinds = [
+    "diff_similarity",
+]
+spec_version = "0.2.0"
+content_hash = "sha256:bbc1704bc4da643ccdb5bdd4a979eb06acedb75654b043b0418c70eb46723dd4"
+
+[metadata.repo2env.pr_diff]
+pr_merged_at = "2023-05-05T20:27:30Z"
+diff_format = "unified"
+context_files = [
+    ".github/workflows/python-app.yml",
+    "README.md",
+    "notebooks/11a-QuickUMLS_Extraction_Defaults.ipynb",
+    "pyproject.toml",
+    "setup.py",
+    "test",
+    "tests/quickumls/test_quickumls.py",
+    "tests/quickumls/test_quickumls_entity.py",
+    "tests/quickumls/test_quickumls_spangroup.py",
+    "windows_and_quickumls.md",
+]
+
+[metadata.repo2env.reward_calibration]
+baseline_reward = 0.0
+loc_changed = 482
+difficulty = "large"
+
+[metadata.repo2env.evaluation]
+schema_version = "1"
+status = "unverified"
+stage = "generation"
+reason_codes = [
+    "validation_not_run",
+]
+detail = "Generated task; validation has not been established."
+provenance = "unknown"
+evidence = []
+
+[metadata.repo2env.reproducibility]
+mode = "local_only"
+image_ref = "python:3.12-slim"
+image_tag = "python:3.12-slim"
+image_visibility = "private"
+
+[agent]
+timeout_sec = 1800.0
+
+[verifier]
+timeout_sec = 300.0

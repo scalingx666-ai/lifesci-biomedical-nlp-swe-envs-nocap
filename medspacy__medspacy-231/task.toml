@@ -1,0 +1,62 @@
+version = "1.0"
+
+[task]
+name = "default/medspacy__medspacy-231"
+description = "fix: dont raise on conflict with ents in TargetMatcher"
+
+[metadata]
+difficulty = "small"
+category = "bugfix"
+keywords = [
+    "medspacy",
+    "pr_diff",
+]
+
+[metadata.repo2env]
+pipeline = "pr_diff"
+pipeline_version = "0.3.0"
+repo = "medspacy/medspacy"
+ref = "1a83ce210870d2cec0e70ad6acdce2170b1827a0"
+reference = "https://github.com/medspacy/medspacy/pull/231"
+source_access = "auto"
+built_at = "2026-11-18T03:44:40.107736+00:00"
+reward_kinds = [
+    "diff_similarity",
+]
+spec_version = "0.2.0"
+content_hash = "sha256:c17a05569bb5ccbab8bdfd5e4e92c4ebf0ae26c68165f420da282e6d45e556dd"
+
+[metadata.repo2env.pr_diff]
+pr_merged_at = "2023-05-26T19:43:33Z"
+diff_format = "unified"
+context_files = [
+    "medspacy/target_matcher/target_matcher.py",
+]
+
+[metadata.repo2env.reward_calibration]
+baseline_reward = 0.0
+loc_changed = 11
+difficulty = "small"
+
+[metadata.repo2env.evaluation]
+schema_version = "1"
+status = "unverified"
+stage = "generation"
+reason_codes = [
+    "validation_not_run",
+]
+detail = "Generated task; validation has not been established."
+provenance = "unknown"
+evidence = []
+
+[metadata.repo2env.reproducibility]
+mode = "local_only"
+image_ref = "python:3.12-slim"
+image_tag = "python:3.12-slim"
+image_visibility = "private"
+
+[agent]
+timeout_sec = 1800.0
+
+[verifier]
+timeout_sec = 300.0

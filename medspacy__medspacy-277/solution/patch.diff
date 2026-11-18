@@ -1,0 +1,23 @@
+diff --git a/resources/context_rules.json b/resources/context_rules.json
+index 5d4f18e0..b1dde872 100644
+--- a/resources/context_rules.json
++++ b/resources/context_rules.json
+@@ -1397,6 +1397,18 @@
+       "pattern": null,
+       "direction": "BACKWARD"
+     },
++    {
++      "category": "NEGATED_EXISTENCE",
++      "literal": "are not evident",
++      "pattern": null,
++      "direction": "BACKWARD"
++    },
++    {
++      "category": "NEGATED_EXISTENCE",
++      "literal": "negative on",
++      "pattern": null,
++      "direction": "BACKWARD"
++    },
+     {
+       "category": "HISTORICAL",
+       "literal": "presentation",

@@ -1,0 +1,93 @@
+diff --git a/medspacy/postprocess/postprocessing_pattern.py b/medspacy/postprocess/postprocessing_pattern.py
+index 483b9192..b73db235 100644
+--- a/medspacy/postprocess/postprocessing_pattern.py
++++ b/medspacy/postprocess/postprocessing_pattern.py
+@@ -9,7 +9,7 @@ class PostprocessingPattern:
+     in the later Postprocessor as part of PostprocessingRules.
+     """
+ 
+-    def __init__(self, condition: Callable, success_value: Any, **kwargs):
++    def __init__(self, condition: Callable, success_value: Any = True, **kwargs):
+         """
+         A PostprocessingPattern defines a single condition to check against an entity.
+ 
+diff --git a/medspacy/target_matcher/concept_tagger.py b/medspacy/target_matcher/concept_tagger.py
+index 1b9ad5d3..1b17dac2 100644
+--- a/medspacy/target_matcher/concept_tagger.py
++++ b/medspacy/target_matcher/concept_tagger.py
+@@ -36,14 +36,12 @@ def __init__(
+         self._attr_name = attr_name
+         self.__matcher = MedspacyMatcher(nlp, name=name)
+ 
+-        # If the token attribute hasn't been set, add it now
+-        # try:
+-        #     Token.set_extension(attr_name, default="")
+-        # except:
+-        #     pass
+-
+-        # not sure if silent errors here are beneficial, removing try statement for now.
+-        Token.set_extension(self._attr_name, default="")
++        # If the token attribute hasn't been registered, add it now
++        # If it has already been set, then we can pass.
++        # This will happen, for example, if you've already instantiated
++        # the ConceptTagger and it registered the attribute.
++        if not Token.has_extension(attr_name):
++            Token.set_extension(attr_name, default="")
+ 
+     @property
+     def attr_name(self) -> str:
+diff --git a/setup.py b/setup.py
+index a2cc30f9..2dd32223 100644
+--- a/setup.py
++++ b/setup.py
+@@ -62,7 +62,7 @@ def get_version():
+     author="medSpaCy",
+     packages=find_packages(),
+     install_requires=[
+-        "spacy>=3.4.1",
++        "spacy>=3.4.1, <4.*",
+         "PyRuSH>=1.0.8",
+         "pysbd==0.3.4",
+         "jsonschema",
+diff --git a/tests/target_matcher/test_concept_tagger.py b/tests/target_matcher/test_concept_tagger.py
+new file mode 100644
+index 00000000..4323ff74
+--- /dev/null
++++ b/tests/target_matcher/test_concept_tagger.py
+@@ -0,0 +1,35 @@
++import spacy
++from spacy.tokens import Token
++from medspacy.target_matcher import ConceptTagger
++
++
++import tempfile
++
++tmpdirname = tempfile.TemporaryDirectory()
++
++
++
++class TestMedSpaCyExtensions:
++
++    def test_concept_tagger_set_concept_tag_attr(self):
++        nlp = spacy.blank("en")
++        assert Token.has_extension("concept_tag") is False
++        concept_tagger = nlp.add_pipe("medspacy_concept_tagger")
++        assert Token.has_extension("concept_tag") is True
++
++    def test_concept_tagger_set_concept_tag_attr_twice(self):
++        """Make sure that you can instantiate the ConceptTagger twice
++        and spaCy doesn't throw an error about the attribute."""
++        nlp = spacy.blank("en")
++        concept_tagger = nlp.add_pipe("medspacy_concept_tagger")
++        nlp.remove_pipe("medspacy_concept_tagger")
++        nlp.add_pipe("medspacy_concept_tagger")
++
++    def test_concept_tagger_set_custom_attr(self):
++        nlp = spacy.blank("en")
++        attr_name = "my_attre"
++        assert Token.has_extension(attr_name) is False
++        concept_tagger = nlp.add_pipe("medspacy_concept_tagger", config=dict(attr_name=attr_name))
++        assert Token.has_extension(attr_name) is True
++
++       
+\ No newline at end of file

@@ -1,0 +1,336 @@
+diff --git a/medspacy/__init__.py b/medspacy/__init__.py
+index 21adb1cb..66501ed8 100644
+--- a/medspacy/__init__.py
++++ b/medspacy/__init__.py
+@@ -1 +1,2 @@
+ from .util import load
++from ._version import __version__
+\ No newline at end of file
+diff --git a/medspacy/_version.py b/medspacy/_version.py
+new file mode 100644
+index 00000000..0b153bba
+--- /dev/null
++++ b/medspacy/_version.py
+@@ -0,0 +1 @@
++__version__ = '0.0.1.1'
+\ No newline at end of file
+diff --git a/medspacy/custom_tokenizer.py b/medspacy/custom_tokenizer.py
+index 40aa9c00..81780ea1 100644
+--- a/medspacy/custom_tokenizer.py
++++ b/medspacy/custom_tokenizer.py
+@@ -6,6 +6,7 @@
+ from spacy.tokenizer import Tokenizer
+ from spacy.util import compile_prefix_regex, compile_infix_regex, compile_suffix_regex
+ 
++
+ def create_medspacy_tokenizer(nlp):
+     """Generates a custom tokenizer to augment the default spacy tokenizer 
+         for situations commonly seen in clinical text.
+@@ -14,10 +15,9 @@ def create_medspacy_tokenizer(nlp):
+                 For example, this allows the following examples to be more aggresively tokenized as :
+                     "Patient complains of c/o" -> [..., 'c', '/', 'o']
+                     "chf+cp" -> ['chf', '+', 'cp']
+-
+        @param nlp: Spacy language model
+     """
+-    
++
+     # augment the defaults
+     # this is not quite correct.  We do not want to break on uppercase and we do not
+     # want to break on all punctuation (periods)
+@@ -37,10 +37,10 @@ def create_medspacy_tokenizer(nlp):
+     infix_re = compile_infix_regex(infixes)
+     prefix_re = compile_prefix_regex(prefixes)
+     suffix_re = compile_suffix_regex(suffixes)
+-    
++
+     # Default exceptions could be extended later
+     tokenizer_exceptions = nlp.Defaults.tokenizer_exceptions.copy()
+-    
++
+     # now create this
+     tokenizer = Tokenizer(
+         nlp.vocab,
+diff --git a/medspacy/postprocess.py b/medspacy/postprocess.py
+index 8db64f39..fb470570 100644
+--- a/medspacy/postprocess.py
++++ b/medspacy/postprocess.py
+@@ -1,2 +1,6 @@
+-from nlp_postprocessor import Postprocessor, PostprocessingRule, PostprocessingPattern
++from nlp_postprocessor import (
++    Postprocessor,
++    PostprocessingRule,
++    PostprocessingPattern,
++)
+ from nlp_postprocessor import postprocessing_functions
+diff --git a/medspacy/util.py b/medspacy/util.py
+index 88607220..d73db8c6 100644
+--- a/medspacy/util.py
++++ b/medspacy/util.py
+@@ -5,23 +5,26 @@
+     "sentencizer",
+     "target_matcher",
+     "context",
++    "tokenizer",
+ }
+ 
+ 
+ def load(model="default", enable=None, disable=None, load_rules=True):
+     """Load a spaCy language object with medSpaCy pipeline components.
+-    By default, the base model will be 'en_core_web_sm' with the following components:
+-        - sentencizer: PyRuSH Sentencizer for sentence splitting
+-        - target_matcher: TargetMatcher for extended pattern matching
+-        - context: ConText for attribute assertion
+-
+-
++    By default, the base model will be 'en_core_web_sm' with the
++    following components:
++        - "tokenizer": A customized tokenizer (set to be nlp.tokenizer)
++        - "sentencizer": PyRuSH Sentencizer for sentence splitting
++        - "target_matcher": TargetMatcher for extended pattern matching
++        - "context": ConText for attribute assertion
+     Args:
+         model: The name of the base spaCy model to load. Default 'language' will load the tagger and parser
+             from "en_core_web_sm".
+         enable (iterable or None): A list of component names to include in the pipeline.
+             If None, will include all pipeline components listed above.
+             Pipeline components could also be instantiated separately and added using the `nlp.add_pipe` method.
++            In addition to the default values above, the following components may also be added:
++                - "sectionizer": A SectionDetection component
+         disable (iterable or None): A list of component names to exclude.
+             Cannot be set if `enable` is not None.
+         load_rules (bool): Whether or not to include default rules for available components.
+@@ -31,48 +34,26 @@ def load(model="default", enable=None, disable=None, load_rules=True):
+     Returns:
+         nlp: a spaCy Language object
+     """
+-    if enable is not None and disable is not None:
+-        raise ValueError("Either `enable` or `disable` must be None.")
+-    if disable is not None:
+-        # If there's a single pipe name, next it in a set
+-        if isinstance(disable, str):
+-            disable = {disable}
+-        else:
+-            disable = set(disable)
+-        enable = DEFAULT_PIPENAMES.difference(set(disable))
+-    elif enable is not None:
+-        if isinstance(enable, str):
+-            enable = {enable}
+-        else:
+-            enable = set(enable)
+-        disable = set(DEFAULT_PIPENAMES).difference(enable)
+-    else:
+-        enable = DEFAULT_PIPENAMES
+-        disable = set()
+-    # We'll eventually have an actual medSpaCy model here
+-    # but for now we're basing it off of "en_core_web_sm"
+-    if model == "default":
+-        model = "en_core_web_sm"
+-        disable.update({"ner", "tagger", "parser"})
+ 
++    model, enable, disable = _build_pipe_names(model, enable, disable)
+     import spacy
+-
+     nlp = spacy.load(model, disable=disable)
+ 
+     # Not allowing disabling the tokenizer for now
+     if "tokenizer" in enable:
+         from .custom_tokenizer import create_medspacy_tokenizer
+-
+         medspacy_tokenizer = create_medspacy_tokenizer(nlp)
+         nlp.tokenizer = medspacy_tokenizer
+ 
+     if "sentencizer" in enable:
+         from os import path
+         from pathlib import Path
++
+         pyrush_path = path.join(
+             Path(__file__).resolve().parents[1], "resources", "rush_rules.tsv"
+         )
+         from .sentence_splitting import PyRuSHSentencizer
++
+         pyrush = PyRuSHSentencizer(pyrush_path)
+         if "parser" in nlp.pipe_names:
+             if "tagger" in nlp.pipe_names:
+@@ -97,4 +78,43 @@ def load(model="default", enable=None, disable=None, load_rules=True):
+             context = ConTextComponent(nlp, rules=None)
+         nlp.add_pipe(context)
+ 
++    if "sectionizer" in enable:
++        from .section_detection import Sectionizer
++
++        if load_rules:
++            sectionizer = Sectionizer(nlp, patterns="default")
++        else:
++            sectionizer = Sectionizer(nlp, patterns=None)
++        nlp.add_pipe(sectionizer)
+     return nlp
++
++
++def _build_pipe_names(model, enable=None, disable=None):
++    """Implement logic based on the pipenames defined in 'enable' and 'disable'.
++    If enable and disable are both None, then it will load the default pipenames.
++    Otherwise, will allow custom selection of components.
++    """
++    if enable is not None and disable is not None:
++        raise ValueError("Either `enable` or `disable` must be None.")
++    if disable is not None:
++        # If there's a single pipe name, next it in a set
++        if isinstance(disable, str):
++            disable = {disable}
++        else:
++            disable = set(disable)
++        enable = DEFAULT_PIPENAMES.difference(set(disable))
++    elif enable is not None:
++        if isinstance(enable, str):
++            enable = {enable}
++        else:
++            enable = set(enable)
++        disable = set(DEFAULT_PIPENAMES).difference(enable)
++    else:
++        enable = DEFAULT_PIPENAMES
++        disable = set()
++    # We'll eventually have an actual medSpaCy model here
++    # but for now we're basing it off of "en_core_web_sm"
++    if model == "default":
++        model = "en_core_web_sm"
++        disable.update({"ner", "tagger", "parser"})
++    return model, enable, disable
+diff --git a/medspacy/visualization.py b/medspacy/visualization.py
+index 9b801204..d63d8378 100644
+--- a/medspacy/visualization.py
++++ b/medspacy/visualization.py
+@@ -50,7 +50,8 @@ def visualize_ent(doc, context=True, sections=True, jupyter=True, colors=None):
+                 ents_data.append((ent_data, "modifier"))
+                 visualized_modifiers.add(modifier)
+     if sections:
+-        for (title, header, _) in doc._.sections:
++        for section_tup in doc._.sections:
++            title, header = section_tup[:2]
+             if title is None:
+                 continue
+             ent_data = {
+@@ -65,8 +66,8 @@ def visualize_ent(doc, context=True, sections=True, jupyter=True, colors=None):
+     else:
+         ents_data = sorted(ents_data, key=lambda x: x[0]["start"])
+ 
+-        # If colors aren't defined, generate color mappings for each entity and modifier label
+-        # And set all section titles to a light gray
++        # If colors aren't defined, generate color mappings for each entity
++        # and modifier label and set all section titles to a light gray
+         if colors is None:
+             labels = set()
+             section_titles = set()
+@@ -99,7 +100,8 @@ def _create_color_mapping(labels):
+ 
+ 
+ def _create_color_generator():
+-    """Create a generator which will cycle through a list of default matplotlib colors"""
++    """Create a generator which will cycle through a list of
++    default matplotlib colors"""
+     from itertools import cycle
+ 
+     colors = [
+@@ -131,7 +133,9 @@ def visualize_dep(doc, jupyter=True):
+ 
+     # Merge phrases
+     targets_and_modifiers = [*doc._.context_graph.targets]
+-    targets_and_modifiers += [mod.span for mod in doc._.context_graph.modifiers]
++    targets_and_modifiers += [
++        mod.span for mod in doc._.context_graph.modifiers
++    ]
+     for span in targets_and_modifiers:
+         first_token = span[0]
+         data = token_data_mapping[first_token]
+@@ -142,7 +146,8 @@ def visualize_dep(doc, jupyter=True):
+ 
+         idx = data["index"]
+         for other_token in span[1:]:
+-            # Add the text to the display data for the first word and remove the subsequent token
++            # Add the text to the display data for the first word
++            # and remove the subsequent token
+             data["text"] += " " + other_token.text
+             # Remove this token from the list of display data
+             token_data.pop(idx + 1)
+diff --git a/setup.py b/setup.py
+index 72d6d4c9..aae678e9 100644
+--- a/setup.py
++++ b/setup.py
+@@ -7,9 +7,20 @@
+ with open(path.join(this_directory, "README.md"), encoding="utf-8") as f:
+     long_description = f.read()
+ 
++def get_version():
++    """Load the version from version.py, without importing it.
++    This function assumes that the last line in the file contains a variable defining the
++    version string with single quotes.
++    """
++    try:
++        with open('medspacy/_version.py', 'r') as f:
++            return f.read().split('\n')[0].split('=')[-1].replace('\'', '').strip()
++    except IOError:
++        raise IOError
++
+ setup(
+     name="medspacy",
+-    version="0.0.1.1",
++    version=get_version(),
+     description="Library for clinical NLP with spaCy.",
+     author="medSpaCy",
+     author_email="medspacy.dev@gmail.com",
+diff --git a/tests/test_medspacy.py b/tests/test_medspacy.py
+index cf9e8945..31b14d32 100644
+--- a/tests/test_medspacy.py
++++ b/tests/test_medspacy.py
+@@ -6,6 +6,12 @@
+ 
+ 
+ class TestMedSpaCy:
++    def test_default_build_pipe_names(self):
++        model, enable, disable = medspacy.util._build_pipe_names("default", enable=None, disable=None)
++        assert model == "en_core_web_sm"
++        assert enable == {"tokenizer", "sentencizer", "target_matcher", "context"}
++        assert disable == {"parser", "tagger", "ner"}
++
+     def test_default_load(self):
+         nlp = medspacy.load()
+         expected_pipe_names = {
+@@ -16,9 +22,9 @@ def test_default_load(self):
+         assert set(nlp.pipe_names) == expected_pipe_names
+ 
+     def test_load_enable(self):
+-        nlp = medspacy.load(enable=["target_matcher"])
+-        assert len(nlp.pipeline) == 1
+-        assert "target_matcher" in nlp.pipe_names
++        nlp = medspacy.load(enable={"target_matcher", "sectionizer"})
++        assert len(nlp.pipeline) == 2
++        assert set(nlp.pipe_names) == {"target_matcher", "sectionizer"}
+ 
+     def test_nlp(self):
+         nlp = medspacy.load()
+@@ -62,6 +68,17 @@ def test_medspacy_tokenizer(self):
+         assert "n / v / d" in joined_tokens
+         assert "chf + cp" in joined_tokens
+ 
++    def test_disable_medspacy_tokenizer(self):
++        default_tokenizer = spacy.blank("en").tokenizer
++        custom_tokenizer = medspacy.load(disable=['tokenizer']).tokenizer
++
++        text = r'Pt c\o n;v;d h\o chf+cp n/v/d'
++
++        default_doc = default_tokenizer(text)
++        medspacy_doc = custom_tokenizer(text)
++
++        assert [token.text for token in default_doc] == [token.text for token in medspacy_doc]
++
+     def test_medspacy_tokenizer_uppercase(self):
+         custom_tokenizer = medspacy.load(enable=['tokenizer']).tokenizer
+ 
+@@ -94,4 +111,5 @@ def test_medspacy_tokenizer_numerics(self):
+         # Check that some expected token boundries are generated
+         joined_tokens = " ".join(tokens)
+         assert "1.5" in joined_tokens
+-        assert "1 . 5" not in joined_tokens
+\ No newline at end of file
++        assert "1 . 5" not in joined_tokens
++

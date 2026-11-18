@@ -1,0 +1,67 @@
+version = "1.0"
+
+[task]
+name = "default/medspacy__medspacy-285"
+description = "fix readme configure. add test build in python-app.yml"
+
+[metadata]
+difficulty = "medium"
+category = "bugfix"
+keywords = [
+    "medspacy",
+    "pr_diff",
+]
+
+[metadata.repo2env]
+pipeline = "pr_diff"
+pipeline_version = "0.3.0"
+repo = "medspacy/medspacy"
+ref = "464a788ee38350a78667e854be96d0aa6cf203d4"
+reference = "https://github.com/medspacy/medspacy/pull/285"
+source_access = "auto"
+built_at = "2026-11-18T03:43:58.244847+00:00"
+reward_kinds = [
+    "diff_similarity",
+]
+spec_version = "0.2.0"
+content_hash = "sha256:cda186aaeab906e504b736541e52bdd4318969ff30675f51f4f341487da77beb"
+
+[metadata.repo2env.pr_diff]
+pr_merged_at = "2024-05-02T06:03:03Z"
+diff_format = "unified"
+context_files = [
+    ".github/workflows/build_release.yml",
+    ".github/workflows/manual_test_multiversion.yml",
+    ".github/workflows/manual_test_pip.yml",
+    ".github/workflows/python-app.yml",
+    ".github/workflows/python-publish.yml",
+    "pyproject.toml",
+]
+
+[metadata.repo2env.reward_calibration]
+baseline_reward = 0.0
+loc_changed = 30
+difficulty = "medium"
+
+[metadata.repo2env.evaluation]
+schema_version = "1"
+status = "unverified"
+stage = "generation"
+reason_codes = [
+    "validation_not_run",
+]
+detail = "Generated task; validation has not been established."
+provenance = "unknown"
+evidence = []
+
+[metadata.repo2env.reproducibility]
+mode = "local_only"
+image_ref = "python:3.12-slim"
+image_tag = "python:3.12-slim"
+image_visibility = "private"
+
+[agent]
+timeout_sec = 1800.0
+
+[verifier]
+timeout_sec = 300.0

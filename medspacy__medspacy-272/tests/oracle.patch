@@ -1,0 +1,32 @@
+diff --git a/medspacy/VERSION b/medspacy/VERSION
+index 1b87bcd0..314c3d71 100644
+--- a/medspacy/VERSION
++++ b/medspacy/VERSION
+@@ -1 +1 @@
+-1.1.4
+\ No newline at end of file
++1.1.5
+\ No newline at end of file
+diff --git a/medspacy/_version.py b/medspacy/_version.py
+index 64778fc2..2c0382f0 100644
+--- a/medspacy/_version.py
++++ b/medspacy/_version.py
+@@ -1 +1 @@
+-__version__ = '1.1.4'
+\ No newline at end of file
++__version__ = '1.1.5'
+\ No newline at end of file
+diff --git a/setup.py b/setup.py
+index 35609078..9d5b8ad1 100644
+--- a/setup.py
++++ b/setup.py
+@@ -24,6 +24,9 @@ def package_files(directory):
+ # get all files recursively from /resources
+ resource_files = package_files("./resources")
+ 
++# get all files recursively from /requirements
++resource_files += package_files("./requirements")
++
+ # read requirements configuration
+ with open('requirements/requirements.txt') as f:
+     required = f.read().splitlines()

@@ -1,0 +1,121 @@
+diff --git a/medspacy/postprocess/postprocessor.py b/medspacy/postprocess/postprocessor.py
+index 6af4f261..fda6e900 100644
+--- a/medspacy/postprocess/postprocessor.py
++++ b/medspacy/postprocess/postprocessor.py
+@@ -114,15 +114,24 @@ def __call__(self, doc: Doc):
+             ent = spans[i]
+             if self.debug:
+                 print(ent)
++
++            # let's keep track of whether the rule makes a change to spans
++            span_count_before_rule = None
++            if self._input_span_type == "ents":
++                span_count_before_rule = len(doc.ents)
++            else:
++                span_count_before_rule = len(doc.spans[self.span_group_name])
++
+             for rule in self.rules:
+                 rule(ent, i, debug=self.debug)
+-                # Check if the entity was removed -if it was, skip to the next entity
++                # Check if the entity was removed based on span counts before and after rule execution
++                # if it was, skip to the next entity
+                 try:
+                     if self._input_span_type == "ents":
+-                        if len(doc.ents[i]) != len(spans):
++                        if len(doc.ents) != span_count_before_rule:
+                             break
+                     else:
+-                        if len(doc.spans[self.span_group_name]) == len(spans):
++                        if len(doc.spans[self.span_group_name]) != span_count_before_rule:
+                             break
+                 except IndexError:
+                     break
+diff --git a/tests/postprocess/test_postprocessor.py b/tests/postprocess/test_postprocessor.py
+index 38b805b9..425fbbad 100644
+--- a/tests/postprocess/test_postprocessor.py
++++ b/tests/postprocess/test_postprocessor.py
+@@ -2,11 +2,14 @@
+ from spacy.language import Language
+ from spacy.tokens import Span, Doc
+ 
++from medspacy.target_matcher import TargetMatcher, TargetRule
+ from medspacy.postprocess import Postprocessor
+ from medspacy.postprocess import PostprocessingRule
+ from medspacy.postprocess import PostprocessingPattern
+ from medspacy.postprocess import postprocessing_functions
+ 
++from typing import Iterable, Union, Literal
++
+ import pytest
+ 
+ import re
+@@ -15,6 +18,13 @@
+ 
+ nlp = spacy.load("en_core_web_sm")
+ 
++# Simple helper function to remove span groups
++def remove_span_group(ent: Span,
++    i: int,
++    input_type: Literal["ents", "group"] = "ents",
++    span_group_name: str = "medspacy_spans"):
++    return postprocessing_functions.remove_ent(ent, i, "group", span_group_name)
++
+ class TestPostprocessor:
+     def test_post_processor(self):
+         """Test that the post processor executes a rule."""
+@@ -45,8 +55,6 @@ def test_post_processor(self):
+     def test_post_processor_execute_all_rules(self):
+         """Test that the post processor executes all configured rules.
+             See more here: https://github.com/medspacy/medspacy/issues/213"""
+-
+-        """Test that the post processor executes a rule."""
+         doc = nlp("There is shortness of breath.")
+ 
+         # NOTE: Since the issue this reproduces will check for two things which should not be
+@@ -83,3 +91,46 @@ def test_post_processor_execute_all_rules(self):
+ 
+         assert len(doc.ents) == 0
+ 
++    def test_post_processor_execute_all_rules_span_groups(self):
++        """Test that the post processor executes all configured rules, but this time with Span Groups
++            See more here: https://github.com/medspacy/medspacy/issues/213"""
++
++        matcher = TargetMatcher(nlp, result_type="group")
++        matcher.add([TargetRule("shortness of breath", "CONDITION", pattern=[{"LOWER": "shortness"},
++                                                                             {"LOWER": "of"},
++                                                                             {"LOWER": "breath"}])])
++        doc = nlp("There is shortness of breath")
++        matcher(doc)
++        assert len(doc.spans["medspacy_spans"]) == 1
++
++        # this time it works on group
++        postprocessor = Postprocessor(nlp, input_span_type = "group")
++
++        # let's add just two rules
++        # The first one should not actually perform an action, but is here for the example
++        # The second one should actually perform an action, but this tests the expectation issue
++        postprocessing_rules = [
++            PostprocessingRule(
++                patterns=[
++                    PostprocessingPattern(lambda span: span.text == "SomeOtherEntity", True),
++                ],
++                action=remove_span_group,
++                description="Remove an entity with a specific name which will not be in this tests"
++            ),
++            PostprocessingRule(
++                patterns=[
++                    PostprocessingPattern(lambda span: span is not None, True),
++                ],
++                action=remove_span_group,
++                description="Remove any entity found."
++            )
++        ]
++
++        postprocessor.add(postprocessing_rules)
++
++        doc = postprocessor(doc)
++
++        # make sure we have no spans now (all of the rules actually ran)
++
++        assert len(doc.spans["medspacy_spans"]) == 0
++
